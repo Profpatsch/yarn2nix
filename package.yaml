@@ -1,0 +1,23 @@
+name: yarn-lock
+version: 0.1.0
+github: Profpatsch/yaml-lock
+license: MIT
+license-file: LICENSE
+synopsis: Represent and parse yarn.lock files
+description: Types and parser for the lock file format of the npm successor yarn.
+author: Profpatsch
+maintainer: mail@profpatsch.de
+category: Data
+
+ghc-options:
+  - -Wall
+
+dependencies:
+  - base == 4.*
+  - containers
+  - text
+  - megaparsec == 5.*
+  - protolude >= 0.1
+
+library:
+  source-dirs: src
