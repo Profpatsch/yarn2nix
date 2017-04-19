@@ -1,0 +1,34 @@
+name: yarn2nix
+version: 0.1.0
+github: Profpatsch/yarn2nix
+license: MIT
+license-file: LICENSE
+synopsis: Convert yarn.lock files to nix expressions
+author: Profpatsch
+maintainer: mail@profpatsch.de
+category: Distribution, Nix
+
+ghc-options:
+  - -Wall
+
+dependencies:
+  - base == 4.*
+  - yarn-lock == 0.1.*
+  - containers
+  - text
+  - protolude >= 0.1
+  - hnix >= 0.3
+  - ansi-wl-pprint
+  - regex-tdfa == 1.2.*
+  - regex-tdfa-text == 1.0.0.*
+  - data-fix
+
+library:
+  source-dirs: src
+
+executables:
+  yarn2nix:
+    main: Main.hs
+    dependencies:
+      - yarn2nix
+      - directory >= 1.2
