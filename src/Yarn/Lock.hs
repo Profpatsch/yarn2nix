@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude, GeneralizedNewtypeDeriving #-}
 {-|
 Module : Yarn.Lock
 Description : Parser & Types for yarn.lock files
@@ -13,7 +13,7 @@ deployment can be guaranteed.
 This module provides a parser for @yarn.lock@ files.
 -}
 module Yarn.Lock
-( Lockfile, PackageKey(..), Package(..), RemoteFile(..)
+( Lockfile(..), PackageKey(..), Package(..), RemoteFile(..)
 , PackageEntry, PackageList
 , Yarn.Lock.parse
 -- | = Parsers
@@ -28,10 +28,23 @@ import Text.Megaparsec as MP
 import Text.Megaparsec.Text
 import qualified Data.Text as T
 
-import qualified Data.Map.Strict as M
+import qualified Data.MultiKeyedMap as MKM
+import Data.Proxy (Proxy(..))
 
 -- | Yarn lockfile.
-type Lockfile = M.Map PackageKey Package
+--
+-- It is a multi-keyed map (each value can be referenced by multiple keys).
+-- This is achieved by using an intermediate key @ik@.
+newtype Lockfile = Lockfile (MKM.MKMap PackageKey Package)
+  deriving (Show)
+
+lockfileIkProxy :: Proxy Int
+lockfileIkProxy = Proxy
+
+-- instance Monoid Lockfile where
+--    mempty = Lockfile $ MKM.mkMap (Proxy :: Proxy Int)
+--    -- TODO associativity?
+--    mappend = undefined
 
 -- | Key that indexes package for a specific version.
 data PackageKey = PackageKey
@@ -90,8 +103,10 @@ lockfile = packageListToLockfile <$> packageList
 --
 -- This should press it into our Lockfile Map.
 packageListToLockfile :: PackageList -> Lockfile
-packageListToLockfile = foldl' go mempty
-  where go lf (keys, pkg) = foldl' (\lf' key' -> M.insert key' pkg lf') lf keys
+packageListToLockfile = Lockfile . MKM.fromList lockfileIkProxy
+
+  -- foldl' go mempty
+  -- where go lf (keys, pkg) = foldl' (\lf' key' -> M.insert key' pkg lf') lf keys
 
 -- | Parse a complete yarn.lock into exaclty the same representation.
 --
