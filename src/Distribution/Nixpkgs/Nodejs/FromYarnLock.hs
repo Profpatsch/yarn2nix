@@ -1,10 +1,11 @@
-{-# LANGUAGE OverloadedStrings, TupleSections #-}
+{-# LANGUAGE OverloadedStrings, TupleSections, ScopedTypeVariables #-}
 module Distribution.Nixpkgs.Nodejs.FromYarnLock
 ( toStdout
 , mkPackageSet
 ) where
 
 import Protolude
+import qualified Data.Sequence as S
 import Data.Fix (Fix(Fix))
 import Nix.Expr
 import Nix.Pretty (prettyNix)
@@ -14,6 +15,25 @@ import Text.Regex.TDFA.Text ()
 import Text.Regex.TDFA ((=~))
 
 import Yarn.Lock
+
+removeCyclicDependencies :: forall e a. (Eq e)
+                         => (a -> [e])       -- ^ get dependencies of this a
+                         -> ([e] -> a -> a)  -- ^ set new dependencies
+                         -> a                -- ^ the a to resolve from
+                         -> Map e a          -- ^ the input package map
+                         -> ([S.Seq e], Map e a) -- ^ A list of all removed cycles and the new map
+removeCyclicDependencies getDeps setDeps pkg map = go S.empty pkg map
+  where
+    go :: S.Seq e -> a -> Map e a -> ([S.Seq e], Map e a)
+    go depth pkg map =
+      let depStatus = ((if cylic dep then Left else Right) dep) <$> getDeps pkg
+          updPkg = setDeps pkg $ rights depStatus
+          updMap = 
+      in 
+      where
+        -- check if I’m the first one to appear twice
+        cyclic :: e -> Bool
+        cyclic dep = maybe False (const True) $ S.elemIndexR dep depth
 
 -- | Pretty print the nixpkgs version of @yarn.lock@ to stdout.
 toStdout  :: Lockfile -> IO ()
