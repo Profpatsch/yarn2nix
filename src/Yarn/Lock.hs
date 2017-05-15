@@ -13,9 +13,10 @@ deployment can be guaranteed.
 This module provides a parser for @yarn.lock@ files.
 -}
 module Yarn.Lock
-( Lockfile(..), PackageKey(..), Package(..), RemoteFile(..)
+( Lockfile, PackageKey(..), Package(..), RemoteFile(..)
 , PackageEntry, PackageList
 , Yarn.Lock.parse
+, decycle
 -- | = Parsers
 , lockfile
 , packageListToLockfile, packageList
@@ -23,6 +24,7 @@ module Yarn.Lock
 ) where
 
 import Protolude hiding (try)
+import qualified Data.List as L
 import Data.String (String)
 import Text.Megaparsec as MP
 import Text.Megaparsec.Text
@@ -35,8 +37,7 @@ import Data.Proxy (Proxy(..))
 --
 -- It is a multi-keyed map (each value can be referenced by multiple keys).
 -- This is achieved by using an intermediate key @ik@.
-newtype Lockfile = Lockfile (MKM.MKMap PackageKey Package)
-  deriving (Show)
+type Lockfile = MKM.MKMap PackageKey Package
 
 lockfileIkProxy :: Proxy Int
 lockfileIkProxy = Proxy
@@ -90,6 +91,34 @@ parse src inp = first (T.pack . parseErrorPretty)
 --                                    == length (concatMap fst pl)
 
 
+-- | Takes a 'Lockfile' and removes dependency cycles.
+--
+-- Node packages often contain those and the yarn lockfile
+-- does not yet eliminate them, which may lead to infinite
+-- recursions.
+decycle :: Lockfile -> Lockfile
+decycle lf = goFold [] lf (MKM.keys lf)
+  -- TODO: probably rewrite with State
+  where
+    -- | fold over all package keys, passing the lockfile
+    goFold seen lf' pkeys =
+      foldl' (\lf'' pkey -> go (pkey:seen) lf'') lf' pkeys
+    -- | We get a stack of already seen packages
+    -- and filter out any dependencies we already saw.
+    go :: [PackageKey] -> Lockfile -> Lockfile
+    go seen@(we:_) lf' =
+      let ourPkg = lf' MKM.! we
+          -- old deps minus the already seen ones
+          -- TODO make handling of opt pkgs less of a duplication
+          newDeps = dependencies ourPkg L.\\ seen
+          newOptDeps = optionalDependencies ourPkg L.\\ seen
+          -- we update the pkg with the cleaned dependencies
+          lf'' = MKM.insert we (ourPkg { dependencies = newDeps
+                               , optionalDependencies = newOptDeps }) lf'
+      -- finally we do the same for all remaining deps
+      in goFold seen lf'' $ newDeps ++ newOptDeps
+    go [] _ = panic $ toS "should not happen!"
+
 -- HALP, I don’t know how to parser.
 -- It appears to be a more general format which somewhat resembles yaml.
 -- The code below conflates the format & the semantics of yarn.lock files.
@@ -103,7 +132,7 @@ lockfile = packageListToLockfile <$> packageList
 --
 -- This should press it into our Lockfile Map.
 packageListToLockfile :: PackageList -> Lockfile
-packageListToLockfile = Lockfile . MKM.fromList lockfileIkProxy
+packageListToLockfile = MKM.fromList lockfileIkProxy
 
   -- foldl' go mempty
   -- where go lf (keys, pkg) = foldl' (\lf' key' -> M.insert key' pkg lf') lf keys
