@@ -1,7 +1,7 @@
 {-# LANGUAGE ExistentialQuantification, NamedFieldPuns, ScopedTypeVariables #-}
 module Data.MultiKeyedMap
 ( MKMap
-, mkMap, fromList, toList
+, mkMKMap, fromList, toList
 , updateValue
 , flattenKeys
 ) where
@@ -18,16 +18,16 @@ data MKMap k v = forall ik. (Ord ik, Enum ik)
                  , highestIk :: ik
                  , valMap :: M.Map ik v }
 
-mkMap :: forall k ik v. (Ord k, Ord ik, Enum ik, Bounded ik)
-      => (Proxy ik) -> MKMap k v
-mkMap _ = MKMap mempty (minBound :: ik) mempty
+mkMKMap :: forall k ik v. (Ord k, Ord ik, Enum ik, Bounded ik)
+        => (Proxy ik) -> MKMap k v
+mkMKMap _ = MKMap mempty (minBound :: ik) mempty
 
 instance (Show k, Show v) => Show (MKMap k v) where
   showsPrec d m = Show.showString "fromList " . (showsPrec d $ toList m)
 
 fromList :: forall ik k v. (Ord k, Ord ik, Enum ik, Bounded ik)
          => (Proxy ik) -> [([k], v)] -> MKMap k v
-fromList p = L.foldl' (\m (ks, v) -> newVal ks v m) (mkMap p)
+fromList p = L.foldl' (\m (ks, v) -> newVal ks v m) (mkMKMap p)
 
 toList :: MKMap k v -> [([k], v)]
 toList MKMap{keyMap, valMap} =
