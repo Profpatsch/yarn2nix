@@ -4,14 +4,15 @@ with import <nixpkgs> {};
     let yarn-lock = super.mkDerivation {
           pname = "yarn-lock";
           version = "0.1.0";
-          src = fetchFromGitHub {
-            owner = "Profpatsch";
-            repo = "yarn-lock";
-            rev = "0.1.0";
-            sha256 = "0jrixxg4h6wfmn57xgklmhp1cprq1jn4mzl9001gdl6kpi2cbkg4";
-          };
+          src = ../../haskell/yarn-lock;
+          # src = fetchFromGitHub {
+          #   owner = "Profpatsch";
+          #   repo = "yarn-lock";
+          #   rev = "0.1.0";
+          #   sha256 = "0jrixxg4h6wfmn57xgklmhp1cprq1jn4mzl9001gdl6kpi2cbkg4";
+          # };
           license = lib.licenses.mit;
-          buildDepends = with self; [ megaparsec protolude regex-tdfa regex-tdfa-text ];
+          buildDepends = with self; [ megaparsec protolude regex-tdfa regex-tdfa-text ansi-wl-pprint tasty-hunit tasty-th ];
           buildTools = [ self.hpack ];
           preConfigure = ''hpack'';
         };

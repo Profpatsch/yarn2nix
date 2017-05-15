@@ -33,13 +33,13 @@ main = do
 die' :: Text -> IO ()
 die' err = putText err *> exitFailure
 dieWithUsage :: Text -> IO ()
-dieWithUsage err = die' (err <> "\n" <>usage)
+dieWithUsage err = die' (err <> "\n" <> usage)
 
 
 usage :: Text
 usage = mconcat
   [ "yarn2nix [path/to/yarn.lock]\n"
   , "\n"
-  , "Convert a `yarn.lock` into a syononymous nix expression.\n"
+  , "Convert a `yarn.lock` into a synonymous nix expression.\n"
   , "If no path is given, search for `./yarn.lock`."
   ]

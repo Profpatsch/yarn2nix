@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TupleSections, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, TupleSections, ScopedTypeVariables, ViewPatterns #-}
 module Distribution.Nixpkgs.Nodejs.FromYarnLock
 ( toStdout
 , mkPackageSet
@@ -14,26 +14,10 @@ import qualified Data.Map.Strict as M
 import Text.Regex.TDFA.Text ()
 import Text.Regex.TDFA ((=~))
 
-import Yarn.Lock
+import qualified Data.MultiKeyedMap as MKM
+import Yarn.Lock (PackageKey(..), Package(..), Lockfile, RemoteFile(..))
+import qualified Yarn.Lock as YL
 
-removeCyclicDependencies :: forall e a. (Eq e)
-                         => (a -> [e])       -- ^ get dependencies of this a
-                         -> ([e] -> a -> a)  -- ^ set new dependencies
-                         -> a                -- ^ the a to resolve from
-                         -> Map e a          -- ^ the input package map
-                         -> ([S.Seq e], Map e a) -- ^ A list of all removed cycles and the new map
-removeCyclicDependencies getDeps setDeps pkg map = go S.empty pkg map
-  where
-    go :: S.Seq e -> a -> Map e a -> ([S.Seq e], Map e a)
-    go depth pkg map =
-      let depStatus = ((if cylic dep then Left else Right) dep) <$> getDeps pkg
-          updPkg = setDeps pkg $ rights depStatus
-          updMap = 
-      in 
-      where
-        -- check if I’m the first one to appear twice
-        cyclic :: e -> Bool
-        cyclic dep = maybe False (const True) $ S.elemIndexR dep depth
 
 -- | Pretty print the nixpkgs version of @yarn.lock@ to stdout.
 toStdout  :: Lockfile -> IO ()
@@ -51,17 +35,12 @@ selfPkgSym = "self"
 fixSym :: Text
 fixSym = "fix"
 
-
--- TODO: use the yarn package list to avoid duplication
--- Or probably better: one reclist for deps, then one for assocs.
--- mkPackageSetNoDup :: PackageList -> NExpr
--- mkPackageSetNoDup pl = foldl'
-
--- BIG TODO: general minification
+fetchurlSym :: Text
+fetchurlSym = "fetchurl"
 
 -- | Convert a @yarn.lock@ to a nix expression.
 mkPackageSet :: Lockfile -> NExpr
-mkPackageSet lf = params [buildNodePackageSym, fixSym] ==>
+mkPackageSet (YL.decycle -> lf) = params [buildNodePackageSym, fixSym, fetchurlSym] ==>
   -- enable self-referencing of packages
   -- with string names with a shallow fix
   -- see note FIX
@@ -69,7 +48,8 @@ mkPackageSet lf = params [buildNodePackageSym, fixSym] ==>
     (mkSym fixSym @@ "pkgs")
   where
     -- | set of all packages
-    pkgSet = mkNonRecSet (M.elems $ M.mapWithKey binding lf)
+    -- TODO: use true PackageKey mappings, not the flat version
+    pkgSet = mkNonRecSet (M.elems $ M.mapWithKey binding $ MKM.flattenKeys lf)
     -- | the binding of a single package
     binding :: PackageKey -> Package -> Binding NExpr
     binding pkgKey pkg = packageKeyToIdentifier pkgKey
@@ -85,6 +65,7 @@ rec {
 }
 
 instead, a small fix can be used:
+
 let attrs = self: {
     "foo bar" = 1;
     bar = self."foo bar" + 2;
@@ -95,17 +76,17 @@ in fix attrs
 -- | A single package expression.
 mkPackage :: Text -> Package -> NExpr
 mkPackage name' pkg = mkSym buildNodePackageSym @@ mkNonRecSet
-  [ "name"    $= mkStr (name' <> "-" <> version pkg)
+  [ "name"    $= mkStr name'
   , "version" $= mkStr (version pkg)
   , "src"     $= fetchSrc (resolved pkg)
   -- TODO: How to handle optional dependencies?
-  , "buildInputs"
+  , "nodeBuildInputs"
       $= mkList (((mkSym selfPkgSym) !!.) . packageKeyToIdentifier <$>
-        (dependencies pkg <> optionalDependencies pkg))
+        (dependencies pkg )) -- <> optionalDependencies pkg))
   ]
   where
     fetchSrc :: RemoteFile -> NExpr
-    fetchSrc rf = "fetchgit" @@ mkNonRecSet
+    fetchSrc rf = mkSym fetchurlSym @@ mkNonRecSet
                    [ "url"  $= mkStr (url rf)
                    , "sha1" $= mkStr (sha1sum rf) ]
 
@@ -128,7 +109,7 @@ infixr 2 $$=
 dynamicKey :: Text -> NKeyName NExpr
 dynamicKey k = DynamicKey $ Plain $ DoubleQuoted [Plain k]
 
--- | shortcut to create a list of closed params, like { foo, bar, baz}:
+-- | shortcut to create a list of closed params, like { foo, bar, baz }:
 params :: [Text] -> Params NExpr
 params = mkParamset . fmap (, Nothing)
 
