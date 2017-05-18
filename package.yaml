@@ -15,6 +15,7 @@ dependencies:
   - base == 4.*
   - yarn-lock == 0.1.*
   - containers
+  - mtl
   - text
   - protolude >= 0.1
   - hnix >= 0.3
