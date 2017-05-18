@@ -19,15 +19,19 @@ let
   y = prefixes.yarnpkg;
   b = shortBuildPkg
 
-  # type : AttrsOf NodePackage -> AttrsOf NodePackage
+  # type : A -> A [A : (Deps ∧ Pkgs) [Deps : AttrsOf Pkg, Pkgs : AttrsOf Pkg]]
   # fix’ed deep down below. :)
-  pkgs = s: {
-    "accepts@~1.3.3" = "accepts@1.3.3";
-    "accepts@1.3.3" = b "accepts" "1.3.3" y "sha" [];
-    "babel-core@^6.14.0" = s."babel-core@6.24.1";
-    "babel-core@6.24.1" = b "babel-core" "6.24.1" y "a0e457c58ebdbae575c9f8cd75127e93756435d8" [
-        s."accepts@~1.3.3"
+  deps = s: let sr = s.refs; sp = s.pkgs; in {
+    # references to actual packages
+    refs = {
+    "accepts@~1.3.3" = sp."accepts@1.3.3";
+    "babel-core@^6.14.0" = sp."babel-core@6.24.1";
+    };
+    pkgs = {
+      "accepts@1.3.3" = b "accepts" "1.3.3" y "sha" [];
+      "babel-core@6.24.1" = b "babel-core" "6.24.1" y "a0e457c58ebdbae575c9f8cd75127e93756435d8" [
+        sr."accepts@~1.3.3"
     ];
   };
 
-in fix pkgs;
+in (fix deps).refs;
