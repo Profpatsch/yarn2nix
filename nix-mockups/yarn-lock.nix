@@ -1,11 +1,15 @@
-{ buildNodePackage, fetchurl, fix }:
+{ fix, fetchurl }:
+# buildNodePackage : NodePkgAttrs -> a
+# [NodePackageAttrs : { name : Name, version : Version, src : Drv
+#                     , nodeBuildInputs : ListOf a }]
+buildNodePackage:
 let
   # type : AttrsOf Prefix [Prefix : (Name -> Version -> URL)]
   prefixes = {
     yarnpkg n v = "https://registry.yarnpkg.com/${n}/-/${n}-${v}.tgz"
   };
 
-  # type : Name -> Version -> Prefix -> Sha1Sum -> Dependencies -> NodePackage
+  # type : Name -> Version -> Prefix -> Sha1Sum -> Dependencies -> NodePackageAttrs
   shortBuildPkg = name: version: prfx: sha1: deps: buildNodePackage {
     inherit name version;
     src = fetchurl {
