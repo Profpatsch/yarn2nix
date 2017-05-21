@@ -9,15 +9,16 @@ import Control.Monad.Writer.Lazy (Writer, tell, runWriter)
 import Data.Fix (Fix(Fix))
 import qualified Data.Text as T
 import qualified Data.Map as M
+import qualified Data.MultiKeyedMap as MKM
+
 import Nix.Expr
+import Nix.Expr.Additions
 import Nix.Pretty (prettyNix)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import Text.Regex.TDFA.Text ()
-import Text.Regex.TDFA ((=~))
 
-import qualified Data.MultiKeyedMap as MKM
 import Yarn.Lock (PackageKey(..), Package(..), Lockfile, RemoteFile(..))
 import qualified Yarn.Lock as YL
+import Distribution.Nixpkgs.Nodejs.Utils
 
 
 -- | Pretty print the nixpkgs version of @yarn.lock@ to stdout.
@@ -39,11 +40,9 @@ buildNodePackageSym = "buildNodePackage"
 selfPkgSym :: Text
 selfPkgSym = "s"
 
+fixSym, fetchurlSym :: Text
 -- | The name of the fix function.
-fixSym :: Text
 fixSym = "fix"
-
-fetchurlSym :: Text
 fetchurlSym = "fetchurl"
 
 -- | Shorthand for antiquoted nix strings
@@ -104,10 +103,10 @@ pkgBuildFn = ShortenedBinding "shortBuildPkg" "b" bnd
   where
     bnd = multiParam ["name", "version", "prfx", "sha1", "deps"]
             $ mkSym buildNodePackageSym @@ mkNonRecSet
-              [ inherit [StaticKey "name", StaticKey "version"]
+              [ inherit $ map StaticKey ["name", "version"]
               , "src" $= (mkSym fetchurlSym @@ mkNonRecSet
                 [ "url" $= ("prfx" @@ "name" @@ "version")
-                , inherit [StaticKey "sha1"] ])
+                , inherit $ [StaticKey "sha1"] ])
               , "nodeBuildInputs" $= "deps"
               ]
 
@@ -162,7 +161,7 @@ mkPackageSet (YL.decycle -> lf) = do
     -- TODO: use true PackageKey mappings, not the flat version
            $ MKM.flattenKeys lf
 
-  pure $ simpleParamSet [buildNodePackageSym, fixSym, fetchurlSym] ==>
+  pure $ simpleParamSet [fixSym, fetchurlSym] ==> Param buildNodePackageSym ==>
     -- enable self-referencing of packages
     -- with string names with a shallow fix
     -- see note FIX
@@ -212,6 +211,3 @@ mkPackage name' registry (Package ver remote deps optdeps) = (shortSym pkgBuildF
     depList = mkList (((mkSym selfPkgSym) !!.)
                       . packageKeyToIdentifier <$> (deps <> optdeps))
 
--- | Representation of a PackageKey as nix attribute name.
-packageKeyToIdentifier :: PackageKey -> Text
-packageKeyToIdentifier pk = name pk <> "@" <> npmSemver pk

@@ -14,6 +14,8 @@ ghc-options:
 dependencies:
   - base == 4.*
   - yarn-lock == 0.1.*
+  - aeson >= 1.0
+  - bytestring
   - containers
   - mtl
   - text

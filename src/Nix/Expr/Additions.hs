@@ -3,6 +3,7 @@ module Nix.Expr.Additions where
 
 import Data.Fix (Fix(..))
 import Data.Text (Text)
+import Data.String (IsString(..))
 
 import Nix.Expr
 import Text.Regex.TDFA.Text ()
@@ -44,3 +45,20 @@ aset !!. k = Fix
     isPlainSymbol :: Text -> Bool
     isPlainSymbol s = s =~ ("^[a-zA-Z_][a-zA-Z0-9_'-]*$" :: Text)
 infixl 8 !!.
+
+
+-- | String quotation, either a plain string (S) or antiquoted (A)
+data StrQ = StrQ !Text | AntiQ !NExpr
+instance IsString StrQ where
+  fromString = StrQ . fromString
+
+mkStrQtmpl :: ([Antiquoted Text NExpr] -> NString NExpr) -> [StrQ] -> NExpr
+mkStrQtmpl strtr = Fix . NStr . strtr . map trans
+  where trans (StrQ t) = Plain t
+        trans (AntiQ r) = Antiquoted r
+
+mkStrQ, mkStrQI :: [StrQ] -> NExpr
+-- | Create a double-quoted string from a list of antiquotes/plain strings.
+mkStrQ = mkStrQtmpl DoubleQuoted
+-- | Create a single-quoted string from a list of antiquotes/plain strings.
+mkStrQI = mkStrQtmpl Indented
