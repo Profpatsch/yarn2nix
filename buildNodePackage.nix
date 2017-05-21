@@ -1,5 +1,9 @@
-{ stdenv, jq }:
-{ name, version, src, nodeBuildInputs }@args:
+{ stdenv, jq, linkNodeDeps }:
+{ name # String
+, version # String
+, src # Drv
+, nodeBuildInputs # Listof { name : String, drv : Drv }
+, ... }@args:
 
 # since we skip the build phase, pre and post will not work
 # the caller gives them with no buildPhase
@@ -28,18 +32,15 @@ stdenv.mkDerivation ({
     #${jq}/bin/jq -r '.bin | to_entries[] | "\(.key) \(.value)"' ./package.json
 
     # a npm package is just the tarball extracted to $out
-    cp -r * $out
+    cp -r . $out
 
     # then a node_modules folder is created for all its dependencies
-    ${optionalString (nodeBuildInputs != []) ''
-      mkdir $out/node_modules
-      ${concatMapStringsSep "\n" (dep:
-        ''ln -s ${dep} $out/node_modules/${dep.name}'') nodeBuildInputs}
-    ''}
+    ln -sT "${linkNodeDeps name nodeBuildInputs}" $out/node_modules
 
     runHook postInstall
   '';
 
   dontStrip = true; # stolen from npm2nix
 
-} // args)
+}
+  // (removeAttrs args [ "nodeBuildInputs" ]))
