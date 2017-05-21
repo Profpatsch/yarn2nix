@@ -39,6 +39,7 @@ import Data.Proxy (Proxy(..))
 -- This is achieved by using an intermediate key @ik@.
 type Lockfile = MKM.MKMap PackageKey Package
 
+-- | Proxy type for our MKMap intermediate key
 lockfileIkProxy :: Proxy Int
 lockfileIkProxy = Proxy
 
