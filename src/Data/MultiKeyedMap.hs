@@ -4,7 +4,7 @@ module Data.MultiKeyedMap
 , (!)
 , mkMKMap, fromList, toList
 , insert
-, flattenKeys, keys
+, flattenKeys, keys, values
 ) where
 
 import qualified Data.Map.Strict as M
@@ -67,6 +67,9 @@ flattenKeys MKMap{keyMap, valMap} =
 
 keys :: (Ord k) => MKMap k v -> [k]
 keys = M.keys . flattenKeys
+
+values :: MKMap k v -> [v]
+values (MKMap _ _ valMap) = M.elems valMap
 
 -- TODO: this is like normal insert, it doesn’t search if the value
 -- already exists (where it might want to add the key instead).
