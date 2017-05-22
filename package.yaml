@@ -13,10 +13,12 @@ ghc-options:
 
 dependencies:
   - base == 4.*
-  - yarn-lock == 0.1.*
+  - yarn-lock == 0.2.*
   - aeson >= 1.0
   - bytestring
   - containers
+  - filepath
+  - unordered-containers
   - mtl
   - text
   - protolude >= 0.1

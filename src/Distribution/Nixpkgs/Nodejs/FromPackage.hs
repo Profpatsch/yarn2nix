@@ -2,44 +2,23 @@
 module Distribution.Nixpkgs.Nodejs.FromPackage where
 
 import Protolude
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map as M
-import GHC.Generics (Generic)
+import qualified Data.HashMap.Lazy as HML
 
-import qualified Data.Aeson as A
 import Nix.Expr
 import Nix.Expr.Additions
 
-import Yarn.Lock (PackageKey(..))
 import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToIdentifier)
+import qualified Distribution.Nodejs.Package as NP
+import Yarn.Lock (PackageKey(..))
 
-data Package = Package
-  { name :: Text
-  , version :: Text
-  , description :: Text
-  , private :: Bool
-  , scripts :: Map Text Text
-  , license :: Text
-  , author :: Text
-  , dependencies :: Dependencies
-  , devDependencies :: Dependencies
-  } deriving (Show, Eq, Generic)
-
-type Dependencies = Map Text Text
-depsToPkgKeys :: Dependencies -> [PackageKey]
-depsToPkgKeys = map (\(k, v) -> PackageKey k v) . M.toList
-
-instance A.FromJSON Package
-
--- | convenience
-decode :: BL.ByteString -> Either Text Package
-decode = first toS . A.eitherDecode
+depsToPkgKeys :: NP.Dependencies -> [PackageKey]
+depsToPkgKeys = map (\(k, v) -> PackageKey k v) . HML.toList
 
 -- | generate a nix expression that translates your package.nix
 --
 -- and can serve as template for manual adjustments
-genTemplate :: Package -> NExpr
-genTemplate Package{..} =
+genTemplate :: NP.Package -> NExpr
+genTemplate NP.Package{..} =
   simpleParamSet ["stdenv", "buildNodePackage", "filterSourcePrefixes"]
   ==> Param nodeDepsSym
   -- TODO: devDeps
@@ -51,11 +30,13 @@ genTemplate Package{..} =
         , "nodeBuildInputs"  $= (letE "a" (mkSym nodeDepsSym)
                                   $ mkList (map (pkgDep "a") depPkgKeys))
         , "meta"      $= (mkNonRecSet
-            [ "description" $= mkStr description
-            , "license"     $= mkStr license ])
+           $ may "description" description
+          <> may "license" license
+          <> may "homepage" homepage)
         ])
   where
     depPkgKeys = depsToPkgKeys dependencies
     pkgDep depsSym pk = mkSym depsSym !!. packageKeyToIdentifier pk
     nodeDepsSym = "allDeps"
     nameStr = mkStrQ [StrQ name, "-", AntiQ "version"]
+    may k v = [k $= mkStr (fromMaybe mempty v)]
