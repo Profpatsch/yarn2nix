@@ -11,6 +11,8 @@ import qualified Yarn.Lock as YL
 
 import qualified Distribution.Nixpkgs.Nodejs.FromYarnLock as FYL
 import qualified Distribution.Nixpkgs.Nodejs.FromPackage as FP
+import qualified Distribution.Nodejs.Package as NP
+
 
 data Mode = Yarn | Node
 fileFor :: Mode -> Text
@@ -48,7 +50,7 @@ main = do
         Left err -> die' ("could not parse " <> path' <> ":\n" <> show err)
     parseNode :: FilePath -> IO ()
     parseNode path = do
-      FP.decode <$> BL.readFile path >>= \case
+      NP.decode <$> BL.readFile path >>= \case
         Right nodeModule -> print $ NixP.prettyNix $ FP.genTemplate nodeModule
         Left err -> die' ("could not parse " <> toS path <> ":\n" <> show err)
 
