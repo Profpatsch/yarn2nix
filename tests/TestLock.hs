@@ -19,6 +19,8 @@ keys = Keys (pk "a") (pk "b") (pk "c") (pk "y") (pk "z")
 data LFs = LFs
   { lfNormal, lfEmpty, lfCycle, lfDecycled
   , lfComplex, lfComplexD :: Lockfile }
+-- | Example lockfiles for tests.
+-- These are put into scope in tests by use of @NamedFieldPuns@.
 lfs :: LFs
 lfs = LFs
   { lfNormal = (tlf [pkg' a [b, c], pkg' b [c], pkg' c []])
@@ -34,16 +36,18 @@ lfs = LFs
         tlf = packageListToLockfile
         Keys{a,b,c,y,z} = keys
 
+-- | Test for the 'decycle' method.
 case_decycle :: Assertion
 case_decycle = do
   -- print lfCycle
   lfDecycled @=? (decycle lfCycle)
   lfComplexD @=? (decycle lfComplex)
   where LFs{lfCycle, lfDecycled, lfComplex, lfComplexD} = lfs
-  
 
 type PkgMap = Map PackageKey Package
 
+-- | A lockfile is basically a flat version of a recursive dependency structure.
+-- 'Built' resembles the recursive version of said flat structure.
 data Built = Built PackageKey [Built] deriving (Eq)
 instance Show Built where
   show (Built k b) = show $ printBuild b
@@ -56,9 +60,7 @@ buildFromMap m = map go $ M.keys m
     go :: PackageKey -> Built
     go pk = Built pk $ map go (dependencies $ m M.! pk)
 
--- lfBuilt :: Lockfile -> [Built]
--- lfBuilt = buildFromMap . flattenKeys
-
+-- | Checks if the flat lockfile builds a correct recursive structure.
 case_built :: Assertion
 case_built = do
   let
