@@ -8,6 +8,7 @@
             HUnit
             tasty-hunit
             ansi-wl-pprint
+            neat-interpolation
           ];
           in super.mkDerivation {
             pname = "pkg-env";

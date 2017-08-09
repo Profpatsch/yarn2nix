@@ -18,7 +18,7 @@ dependencies:
   - base == 4.*
   - containers
   - text
-  - megaparsec == 5.*
+  - megaparsec == 5.* || == 6.*
   - protolude >= 0.1
 
 library:
@@ -35,3 +35,4 @@ tests:
       - tasty-th >= 0.1.7
       - tasty-hunit >= 0.9
       - protolude
+      - neat-interpolation >= 0.3

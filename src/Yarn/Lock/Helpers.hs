@@ -18,7 +18,7 @@ import qualified Data.List as L
 
 import qualified Data.MultiKeyedMap as MKM
 
-import Yarn.Lock.Types as T
+import Yarn.Lock.Types
 
 
 -- | Takes a 'Lockfile' and removes dependency cycles.

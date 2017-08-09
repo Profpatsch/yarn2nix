@@ -11,6 +11,8 @@ import qualified Text.Show as S
 import qualified Text.PrettyPrint.ANSI.Leijen as Pr
 import qualified Data.Map.Strict as M
 
+--TODO
+{-
 data Keys = Keys { a, b, c, y, z :: PackageKey }
 keys :: Keys
 keys = Keys (pk "a") (pk "b") (pk "c") (pk "y") (pk "z")
@@ -73,6 +75,9 @@ case_built = do
         , bl b [ble c]
         , ble c]
 
+
+
+-}
 
 tests :: TestTree
 tests = $(testGroupGenerator)

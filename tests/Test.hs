@@ -1,6 +1,7 @@
 module Main where
 
 import Test.Tasty
-import qualified TestLock as TL
+import qualified TestParse as TP
 
-main = defaultMain TL.tests
+main :: IO ()
+main = defaultMain TP.tests
