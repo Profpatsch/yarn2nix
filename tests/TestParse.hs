@@ -31,10 +31,10 @@ nonsenseEntry = [text|
     field2 "nopedidope"
   |]
 
-case_NonsensePackageEntry :: Assertion
-case_NonsensePackageEntry = do
+case_NonsenseASTPackageEntry :: Assertion
+case_NonsenseASTPackageEntry = do
   parseSuccess packageEntry nonsenseEntry
-    >>= \(keys, (PackageFields fields)) -> do
+    >>= \(Keyed keys (PackageFields fields)) -> do
       assertBool "two keys" (length keys == 2)
       assertBool "two fields" (length fields == 2)
       assertBool "field1 member" (Map.member "field1" fields)
@@ -55,7 +55,7 @@ case_NestedPackage :: Assertion
 case_NestedPackage = do
   assertBool "there is unicode" (all Ch.isAscii (toS nestedPackage :: [Char]))
   parseSuccess packageEntry nestedPackage
-    >>= \(_, (PackageFields fields)) -> do
+    >>= \(Keyed _ (PackageFields fields)) -> do
       case Map.lookup "dependencies" fields of
         (Nothing) -> assertFailure "where’s the key"
         (Just (Left s)) -> do

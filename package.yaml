@@ -15,11 +15,12 @@ ghc-options:
   - -Wall
 
 dependencies:
-  - base == 4.*
+  - base >= 4.9
   - containers
   - text
   - megaparsec == 5.* || == 6.*
   - protolude >= 0.1
+  - either == 4.*
 
 library:
   source-dirs: src

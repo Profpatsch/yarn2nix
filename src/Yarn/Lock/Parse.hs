@@ -5,10 +5,10 @@ Description : Parser for yarn.lock files
 Maintainer : Profpatsch
 Stability : experimental
 
-This module provides a parser for @yarn.lock@ files.
+This module provides a parser for the AST of @yarn.lock@ files.
 -}
 module Yarn.Lock.Parse
-( PackageEntry, PackageList, PackageFields(..)
+( PackageFields(..), Keyed(..)
 -- , Yarn.Lock.parse
 -- | = Parsers
 -- , lockfile, packageListToLockfile
@@ -32,13 +32,11 @@ import qualified Data.Text as T
 -- import qualified Data.MultiKeyedMap as MKM
 -- import Data.Proxy (Proxy(..))
 
-import Yarn.Lock.Types
+import Yarn.Lock.Types (PackageKey(..))
 
 
--- | A entry as it appears in the yarn.lock representation.
-type PackageEntry = ([PackageKey], PackageFields)
--- | Convenience alias.
-type PackageList = [PackageEntry]
+-- | Something with a list of 'PackageKey's pointing to it.
+data Keyed a = Keyed [PackageKey] a
 
 -- | The @yarn.lock@ format doesn’t specifically include a fixed scheme,
 -- it’s just an unnecessary custom version of a list of fields.
@@ -58,34 +56,13 @@ newtype PackageFields = PackageFields (Map Text (Either Text PackageFields))
 -- parse src inp = first (T.pack . parseErrorPretty)
 --               $ MP.parse lockfile (T.unpack src) inp
 
--- TODO: actually use somehow (apart from manual testing)
--- The yarn.lock file should resolve each packageKey exactly once.
---
--- No pkgname/semver combination should appear twice. That means
--- the lengths of the converted map and the list lists need to match.
--- prop_LockfileSameAmountOfKeys :: PackageList -> Bool
--- prop_LockfileSameAmountOfKeys pl = length (packageListToLockfile pl)
---                                    == length (concatMap fst pl)
-
-
--- lockfile :: Parser Lockfile
--- lockfile = packageListToLockfile <$> packageList
-
--- | The yarn.lock file is basically a hashmap with multi-keyed entries.
---
--- This should press it into our Lockfile Map.
--- packageListToLockfile :: PackageList -> Lockfile
--- packageListToLockfile = MKM.fromList lockfileIkProxy
-
-  -- foldl' go mempty
-  -- where go lf (keys, pkg) = foldl' (\lf' key' -> M.insert key' pkg lf') lf keys
 
 -- | Parse a complete yarn.lock into an abstract syntax tree
-packageList :: Parser PackageList
+packageList :: Parser [Keyed PackageFields]
 packageList = many $ (skipMany (comment <|> eol)) *> packageEntry
                 where comment = char '#' *> manyTill anyChar eol
 
--- | A single PackageEntry.
+-- | A single Package.
 --
 -- Example:
 --
@@ -100,13 +77,14 @@ packageList = many $ (skipMany (comment <|> eol)) *> packageEntry
 --   optionalDependencies:
 --     uglify-js "^2.6"
 -- @
-packageEntry :: Parser PackageEntry
+packageEntry :: Parser (Keyed PackageFields)
 packageEntry = label "package entry" $
   -- A package entry is a non-indented
-  nonIndented $
-    -- block that has a header of package keys
-  -- and an indented part that contains fields
-    indentedFieldsWithHeader packageKeys
+  nonIndented
+    $ uncurry Keyed
+      -- block that has a header of package keys
+      -- and an indented part that contains fields
+      <$> indentedFieldsWithHeader packageKeys
 
 -- | The list of PackageKeys that index the same Package
 --
@@ -203,10 +181,6 @@ someTextOf c = T.pack <$> some c
 -- | parse everything as inside a string
 inString :: Parser a -> Parser a
 inString = between (char '"') (char '"')
-
--- | parse some text until seperator is reached
-someTextUntilSep :: Char -> Parser Text
-someTextUntilSep sep = T.pack <$> someTill anyChar (char sep)
 
 -- lexers
 
