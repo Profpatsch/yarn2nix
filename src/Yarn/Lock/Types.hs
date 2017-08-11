@@ -47,6 +47,8 @@ data Package = Package
 data Remote
   = FileRemote
   { fileUrl     :: Text -- ^ URL to a remote file
+  , fileSha1    :: Text -- ^ sha1 hash of the file (attached to the link)
+
   }
   | GitRemote
   { gitRepoUrl  :: Text -- ^ valid git remote URL
