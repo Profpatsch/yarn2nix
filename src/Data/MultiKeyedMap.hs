@@ -119,9 +119,12 @@ insert k v m@MKMap{keyMap, highestIk, valMap} =
     upd ik = MKMap { keyMap, highestIk, valMap = M.insert ik v valMap }
 
 
--- | helper, assumes there is no such value already
---
+-- | Helper, assumes there is no such value already.
 -- Will leak space otherwise!
+--
+-- Insert every key into the keyMap, increase the intermediate counter,
+-- insert the value at new intermediate counter.
+-- Overwrites all already existing keys!
 newVal :: (Ord k) => [k] -> v -> MKMap k v -> MKMap k v
 newVal ks v MKMap{keyMap, highestIk, valMap} =
   MKMap { keyMap = L.foldl' (\m k -> M.insert k next m) keyMap ks

@@ -7,6 +7,7 @@
             tasty-th
             HUnit
             tasty-hunit
+            tasty-quickcheck
             ansi-wl-pprint
             neat-interpolation
             either
