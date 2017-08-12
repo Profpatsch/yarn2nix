@@ -19,14 +19,6 @@ type Lockfile = MKM.MKMap PackageKey Package
 lockfileIkProxy :: Proxy Int
 lockfileIkProxy = Proxy
 
--- | A thing whose hash is already known (“resolved”).
---
--- Only packages with known hashes are truly “locked”.
-data Resolved a = Resolved
-  { sha1sum :: Text
-  , resolved :: a
-  } deriving (Show, Eq)
-
 -- | Key that indexes package for a specific version.
 data PackageKey = PackageKey
   { name           :: Text -- ^ package name
@@ -34,6 +26,10 @@ data PackageKey = PackageKey
   -- ^ String that specifies the version of a package.
   -- Sometimes a npm semver, sometimes an arbitrary string.
   } deriving (Show, Eq, Ord)
+
+-- | Something with a list of 'PackageKey's pointing to it.
+data Keyed a = Keyed [PackageKey] a
+  deriving (Show, Eq, Ord)
 
 -- | The actual npm package with dependencies and a way to download.
 data Package = Package

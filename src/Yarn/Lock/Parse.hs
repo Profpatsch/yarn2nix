@@ -8,7 +8,7 @@ Stability : experimental
 This module provides a parser for the AST of @yarn.lock@ files.
 -}
 module Yarn.Lock.Parse
-( PackageFields(..), Keyed(..)
+( PackageFields(..)
 -- , Yarn.Lock.parse
 -- | = Parsers
 -- , lockfile, packageListToLockfile
@@ -27,16 +27,13 @@ import qualified Data.Map.Strict as M
 import Text.Megaparsec as MP hiding (space)
 import Text.Megaparsec.Text
 import qualified Text.Megaparsec.Lexer as MPL
-import qualified Data.Text as T
+import qualified Data.Text as Text
 
 -- import qualified Data.MultiKeyedMap as MKM
 -- import Data.Proxy (Proxy(..))
 
-import Yarn.Lock.Types (PackageKey(..))
+import qualified Yarn.Lock.Types as T
 
-
--- | Something with a list of 'PackageKey's pointing to it.
-data Keyed a = Keyed [PackageKey] a
 
 -- | The @yarn.lock@ format doesn’t specifically include a fixed scheme,
 -- it’s just an unnecessary custom version of a list of fields.
@@ -58,7 +55,7 @@ newtype PackageFields = PackageFields (Map Text (Either Text PackageFields))
 
 
 -- | Parse a complete yarn.lock into an abstract syntax tree
-packageList :: Parser [Keyed PackageFields]
+packageList :: Parser [T.Keyed PackageFields]
 packageList = many $ (skipMany (comment <|> eol)) *> packageEntry
                 where comment = char '#' *> manyTill anyChar eol
 
@@ -77,11 +74,11 @@ packageList = many $ (skipMany (comment <|> eol)) *> packageEntry
 --   optionalDependencies:
 --     uglify-js "^2.6"
 -- @
-packageEntry :: Parser (Keyed PackageFields)
+packageEntry :: Parser (T.Keyed PackageFields)
 packageEntry = label "package entry" $
   -- A package entry is a non-indented
   nonIndented
-    $ uncurry Keyed
+    $ uncurry T.Keyed
       -- block that has a header of package keys
       -- and an indented part that contains fields
       <$> indentedFieldsWithHeader packageKeys
@@ -91,7 +88,7 @@ packageEntry = label "package entry" $
 -- @
 -- align-text@^0.1.1, align-text@^0.1.3:\\n
 -- @
-packageKeys :: Parser [PackageKey]
+packageKeys :: Parser [T.PackageKey]
 packageKeys = label "package keys" $ do
   firstEls <- many (try $ lexeme $ packageKey ":," <* char ',')
   lastEl   <-                      packageKey ":"  <* char ':'
@@ -100,7 +97,7 @@ packageKeys = label "package keys" $ do
 -- | A packageKey is @\<package-name\>\@\<semver\>@;
 --
 -- If the semver contains spaces, it is also quoted with @"@.
-packageKey :: [Char] -> Parser PackageKey
+packageKey :: [Char] -> Parser T.PackageKey
 packageKey separators = inString (pkgKey "\"")
          -- if no string delimiters is used we need to check for the separators
          -- this file format is shit :<
@@ -113,7 +110,7 @@ packageKey separators = inString (pkgKey "\"")
       semver <- (someTextOf (noneOf valueChars))
                 <|> (pure Text.empty <?> "an empty semver")
                 <?> "semver part of package key"
-      pure $ PackageKey pkgName semver
+      pure $ T.PackageKey pkgName semver
 
 
 -- | Either a simple or a nested field.
@@ -136,7 +133,7 @@ simpleField = (,) <$> lexeme symbolChars
     valueChars = someTextOf (noneOf "\n\r\"")
     strValueChars = inString $ valueChars
       -- as with packageKey semvers, this can be empty
-      <|> (pure T.empty <?> "an empty value field")
+      <|> (pure Text.empty <?> "an empty value field")
 
 -- | Similar to a 'simpleField', but instead of a string
 -- we get another block with deeper indentation.
@@ -176,7 +173,7 @@ symbolChars = label "key symbol" $ someTextOf $ satisfy
 -- text versions of parsers & helpers
 
 someTextOf :: Parser Char -> Parser Text
-someTextOf c = T.pack <$> some c
+someTextOf c = Text.pack <$> some c
 
 -- | parse everything as inside a string
 inString :: Parser a -> Parser a

@@ -1,3 +1,13 @@
+{-|
+Module : Yarn.Lock.File
+Description : Semantic info about yarn.lock files
+Maintainer : Profpatsch
+Stability : experimental
+
+After parsing yarn.lock files in 'Yarn.Lock.Parse',
+you want to find out semantic information from the AST
+and ultimately get a 'Lockfile'.
+-}
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, ApplicativeDo, RecordWildCards #-}
 module Yarn.Lock.File
 ( astToPackage, ConversionError(..)
@@ -11,13 +21,22 @@ import qualified Data.Either.Validation as V
 
 import qualified Yarn.Lock.Parse as Parse
 import qualified Yarn.Lock.Types as T
+import qualified Yarn.Lock.Helpers as Helpers
+import qualified Data.MultiKeyedMap as MKM
+
+-- | Press a list of packages into the lockfile structure.
+--
+-- It’s a dumb conversion, you should probably apply
+-- the 'Helpers.decycle' function afterwards.
+toLockfile :: [T.Keyed T.Package] -> T.Lockfile
+toLockfile = MKM.fromList T.lockfileIkProxy
+             . fmap (\(T.Keyed ks p) -> (ks, p))
 
 data ConversionError
   = MissingField Text
   | WrongType
   | UnknownRemoteType
   deriving (Show, Eq)
-
 
 newtype FieldParser a = FieldParser
   { parseField :: Either Text Parse.PackageFields -> Maybe a }
