@@ -140,6 +140,7 @@ insert k v m@MKMap{keyMap, highestIk, valMap} =
 -- insert the value at new intermediate counter.
 -- Overwrites all already existing keys!
 newVal :: (Ord k) => [k] -> v -> MKMap k v -> MKMap k v
+newVal [] _ m = m
 newVal ks v MKMap{keyMap, highestIk, valMap} =
   MKMap { keyMap = L.foldl' (\m k -> M.insert k next m) keyMap ks
         , highestIk = next
