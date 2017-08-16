@@ -9,13 +9,12 @@ This module provides a parser for the AST of @yarn.lock@ files.
 -}
 module Yarn.Lock.Parse
 ( PackageFields(..), Package
--- , Yarn.Lock.parse
--- | = Parsers
--- , lockfile, packageListToLockfile
+-- * Parsing
+-- ** Re-export
+, Parser
+-- ** Parsers
 , packageList
 , packageEntry
--- re-export
-, Parser
 -- = internal parsers
 , field, packageKeys, packageKey
 ) where
@@ -27,7 +26,6 @@ import qualified Data.Map.Strict as M
 import Text.Megaparsec as MP hiding (space)
 import Text.Megaparsec.Text
 import qualified Text.Megaparsec.Lexer as MPL
-import qualified Data.Text as Text
 
 -- import qualified Data.MultiKeyedMap as MKM
 -- import Data.Proxy (Proxy(..))
@@ -43,6 +41,9 @@ import qualified Yarn.Lock.Types as T
 -- The actual conversion to semantic structures needs to be done afterwards.
 newtype PackageFields = PackageFields (Map Text (Either Text PackageFields))
   deriving (Show, Eq, Monoid)
+
+-- | A parsed 'Package' AST has one or more keys, a position in the original files
+-- and a collection of fields.
 type Package = T.Keyed (SourcePos, PackageFields)
 
 
@@ -129,7 +130,7 @@ simpleField = (,) <$> lexeme symbolChars
       -- as with packageKey semvers, this can be empty
       <|> (pure Text.empty <?> "an empty value field")
 
--- | Similar to a 'simpleField', but instead of a string
+-- | Similar to a @simpleField@, but instead of a string
 -- we get another block with deeper indentation.
 nestedField :: Parser (Text, PackageFields)
 nestedField = label "nested field" $
@@ -188,4 +189,6 @@ lexeme = MPL.lexeme space
 -- | Ensure parser is not indented.
 nonIndented :: Parser a -> Parser a
 nonIndented = MPL.nonIndented space
+indentBlock :: ParsecT Dec Text Identity (MPL.IndentOpt (ParsecT Dec Text Identity) a b)
+            -> ParsecT Dec Text Identity a
 indentBlock = MPL.indentBlock space

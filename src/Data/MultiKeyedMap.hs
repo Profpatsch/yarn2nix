@@ -1,9 +1,21 @@
 {-# LANGUAGE ExistentialQuantification, NamedFieldPuns, ScopedTypeVariables #-}
 {-|
 Module : Data.MultiKeyedMap
-Description : A multi-keyed map.
+Description : A map with possibly multiple keys per value
 Maintainer : Profpatsch
 Stability : experimental
+
+Still very much experimental and missing lots of functions and testing.
+
+Internally, a 'MKMap' is two maps, a @keyMap@ referencing an intermediate key
+(whose type can be chosen freely and which is incremented sequentially), and
+a @valueMap@ going from intermediate key to final value.
+
+A correct implementation guarantees that
+
+(1) the internal structure can’t be corrupted by operations declared safe
+(2) adding and removing keys does not make values inaccessible
+    (thus leaking memory) and doesn’t insert unnecessary values
 -}
 module Data.MultiKeyedMap
 ( MKMap
@@ -27,7 +39,8 @@ import qualified Text.Show as Show
 --
 -- Internally, we use two maps connected by an intermediate key.
 -- The intermediate key (@ik@) can be anything implementing
--- 'Ord' (for 'Map') and 'Enum' (for 'succ').
+-- 'Ord' (for 'Map'), 'Bounded' (to get the first value)
+-- and 'Enum' (for 'succ').
 data MKMap k v = forall ik. (Ord ik, Enum ik)
               => MKMap
                  { keyMap :: M.Map k ik
@@ -79,6 +92,7 @@ fromList :: forall ik k v. (Ord k, Ord ik, Enum ik, Bounded ik)
          => (Proxy ik) -- ^ type of intermediate key
          -> [([k], v)] -- ^ list of @(key, value)@
          -> MKMap k v  -- ^ new map
+
 -- TODO: it’s probably better to implement with M.fromList
 fromList p = L.foldl' (\m (ks, v) -> newVal ks v m) (mkMKMap p)
 

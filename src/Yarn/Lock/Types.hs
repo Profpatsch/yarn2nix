@@ -14,10 +14,11 @@ import qualified Data.MultiKeyedMap as MKM
 --
 -- It is a multi-keyed map (each value can be referenced by multiple keys).
 -- This is achieved by using an intermediate key @ik@.
--- 
+--
+-- Attention: Might be changed to a newtype in a future release.
+type Lockfile = MKM.MKMap PackageKey Package
 -- TODO
 -- newtype Lockfile = Lockfile (MKM.MKMap PackageKey Package)
-type Lockfile = MKM.MKMap PackageKey Package
 
 -- | Proxy type for our MKMap intermediate key
 lockfileIkProxy :: Proxy Int
@@ -27,8 +28,8 @@ lockfileIkProxy = Proxy
 data PackageKey = PackageKey
   { name           :: Text -- ^ package name
   , npmVersionSpec :: Text
-  -- ^ String that specifies the version of a package.
-  -- Sometimes a npm semver, sometimes an arbitrary string.
+  -- ^ tring that specifies the version of a package;
+  -- sometimes a npm semver, sometimes an arbitrary string
   } deriving (Show, Eq, Ord)
 
 -- | Something with a list of 'PackageKey's pointing to it.

@@ -1,17 +1,23 @@
 {-|
 Module : Yarn.Lock.File
-Description : Semantic info about yarn.lock files
+Description : Convert AST to semantic data structures
 Maintainer : Profpatsch
 Stability : experimental
 
 After parsing yarn.lock files in 'Yarn.Lock.Parse',
-you want to find out semantic information from the AST
-and ultimately get a 'Lockfile'.
+you want to convert the AST to something with more information
+and ultimately get a 'T.Lockfile'.
+
+@yarn.lock@ files don’t follow a structured approach
+(like for example sum types), so information like e.g.
+the remote type have to be inferred frome AST values.
 -}
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, ApplicativeDo, RecordWildCards, NamedFieldPuns #-}
 module Yarn.Lock.File
 ( fromPackages
-, astToPackage, ConversionError(..)
+, astToPackage
+-- * Errors
+, ConversionError(..)
 ) where
 
 import Protolude
@@ -22,26 +28,34 @@ import qualified Data.Either.Validation as V
 
 import qualified Yarn.Lock.Parse as Parse
 import qualified Yarn.Lock.Types as T
-import qualified Yarn.Lock.Helpers as Helpers
 import qualified Data.MultiKeyedMap as MKM
 
 -- | Press a list of packages into the lockfile structure.
 --
 -- It’s a dumb conversion, you should probably apply
--- the 'Helpers.decycle' function afterwards.
+-- the 'Yarn.Lock.Helpers.decycle' function afterwards.
 fromPackages :: [T.Keyed T.Package] -> T.Lockfile
 fromPackages = MKM.fromList T.lockfileIkProxy
              . fmap (\(T.Keyed ks p) -> (ks, p))
 
+-- | Possible errors when converting from AST.
 data ConversionError
   = MissingField Text
+  -- ^ field is missing
   | WrongType { fieldName :: Text, fieldType :: Text }
+  -- ^ this field has the wrong type
   | UnknownRemoteType
+  -- ^ the remote (e.g. git, tar archive) could not be determined
   deriving (Show, Eq)
 
+-- | Something that can parse the value of a field into type @a@.
 data FieldParser a = FieldParser
   { parseField :: Either Text Parse.PackageFields -> Maybe a
-  , parserName :: Text }
+    -- ^ the parsing function (Left is a simple field, Right a nested one)
+  , parserName :: Text
+    -- ^ name of this parser (for type errors)
+  }
+
 type Val = V.Validation (NE.NonEmpty ConversionError)
 
 -- | Parse an AST 'PackageFields' to a 'T.Package', which has

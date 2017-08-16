@@ -4,7 +4,9 @@ github: Profpatsch/yarn-lock
 license: MIT
 license-file: LICENSE
 synopsis: Represent and parse yarn.lock files
-description: Types and parser for the lock file format of the npm successor yarn.
+description:
+  Types and parser for the lock file format of the npm successor yarn.
+  All modules should be imported qualified.
 author: Profpatsch
 maintainer: mail@profpatsch.de
 category: Data
