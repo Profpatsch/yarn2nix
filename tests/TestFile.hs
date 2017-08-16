@@ -3,12 +3,9 @@ module TestFile (tests) where
 
 import Protolude
 import qualified Data.List.NonEmpty as NE
-import Data.MultiKeyedMap hiding (keys)
 import Test.Tasty (TestTree)
 import Test.Tasty.TH
 import Test.Tasty.HUnit
-import qualified Text.Show as S
-import qualified Text.PrettyPrint.ANSI.Leijen as Pr
 import qualified Data.Map.Strict as M
 
 import qualified Yarn.Lock.Types as T
@@ -30,6 +27,7 @@ emptyAst = Parse.PackageFields . M.fromList
 minimalAst :: [(Text, Either Text Parse.PackageFields)] -> Parse.PackageFields
 minimalAst = emptyAst . ([("version", Left "0.3")] <>)
 
+case_gitRemote :: Assertion
 case_gitRemote = do
   let ref = "abcthisisaref"
       ast link_ hasUid = minimalAst $
@@ -44,6 +42,7 @@ case_gitRemote = do
   astToPackageSuccess (ast ("https://github.com/bla") True)
     `gitRefIs` ref
 
+case_fileRemote :: Assertion
 case_fileRemote = do
   let sha = "helloimref"
       good = minimalAst $
@@ -55,6 +54,7 @@ case_fileRemote = do
       a -> assertFailure ("should be FileRemote, is " <> show a)
   astToPackageFailureWith (pure File.UnknownRemoteType) bad
 
+case_missingField :: Assertion
 case_missingField = do
   astToPackageFailureWith
     (File.MissingField "version"

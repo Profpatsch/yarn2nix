@@ -1,12 +1,10 @@
 {-# LANGUAGE OverloadedStrings, TemplateHaskell, QuasiQuotes, NamedFieldPuns, ViewPatterns, NoImplicitPrelude #-}
 module TestMultiKeyedMap (tests) where
 
-import Protolude hiding (keys)
-import qualified Data.Map as Map
+import Protolude
 import qualified Data.List as List
 import Test.Tasty (TestTree)
 import Test.Tasty.TH
-import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 
 import qualified Data.MultiKeyedMap as MKM

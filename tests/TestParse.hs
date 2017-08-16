@@ -2,7 +2,6 @@
 module TestParse (tests) where
 
 import Protolude
-import Data.MultiKeyedMap hiding (keys)
 import qualified Data.Map as Map
 import Test.Tasty (TestTree)
 import Test.Tasty.TH
@@ -34,7 +33,7 @@ nonsenseEntry = [text|
 case_NonsenseASTPackageEntry :: Assertion
 case_NonsenseASTPackageEntry = do
   parseSuccess packageEntry nonsenseEntry
-    >>= \(Keyed keys (PackageFields fields)) -> do
+    >>= \(Keyed keys (_, PackageFields fields)) -> do
       assertBool "two keys" (length keys == 2)
       assertBool "two fields" (length fields == 2)
       assertBool "field1 member" (Map.member "field1" fields)
@@ -55,7 +54,7 @@ case_NestedPackage :: Assertion
 case_NestedPackage = do
   assertBool "there is unicode" (all Ch.isAscii (toS nestedPackage :: [Char]))
   parseSuccess packageEntry nestedPackage
-    >>= \(Keyed _ (PackageFields fields)) -> do
+    >>= \(Keyed _ (_, PackageFields fields)) -> do
       case Map.lookup "dependencies" fields of
         (Nothing) -> assertFailure "where’s the key"
         (Just (Left s)) -> do
@@ -104,7 +103,7 @@ parseFailure :: Parser a -> Text -> IO ()
 parseFailure parser string = do
   case MP.parseMaybe parser string of
     Nothing -> pure ()
-    (Just a) -> assertFailure "parse should have failed"
+    (Just _) -> assertFailure "parse should have failed"
      
 tests :: TestTree
 tests = $(testGroupGenerator)
