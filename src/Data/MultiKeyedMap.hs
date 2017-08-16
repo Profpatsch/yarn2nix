@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, NamedFieldPuns, ScopedTypeVariables #-}
+{-# LANGUAGE ExistentialQuantification, NamedFieldPuns, ScopedTypeVariables, RecordWildCards, ApplicativeDo #-}
 {-|
 Module : Data.MultiKeyedMap
 Description : A map with possibly multiple keys per value
@@ -68,6 +68,22 @@ instance (Eq k, Ord k, Eq v) => Eq (MKMap k v) where
         -- all be reachable from the keys (TODO: add invariants)
    -- TODO: can (/=) be implemented more efficient than not.(==)?
 
+
+instance Functor (MKMap k) where
+  fmap f (MKMap{..}) = MKMap { valMap = fmap f valMap, .. }
+  {-# INLINE fmap #-}
+
+-- TODO implement all functions Data.Map also implements for Foldable
+instance Foldable (MKMap k) where
+  foldMap f (MKMap{..}) = foldMap f valMap
+  {-# INLINE foldMap #-}
+
+instance Traversable (MKMap k) where
+  traverse f (MKMap{..}) = do
+    val <- traverse f valMap
+    pure $ MKMap{ valMap=val, .. }
+  {-# INLINE traverse #-}
+
 -- | Find value at key. Partial. See 'M.!'.
 at :: (Ord k) => MKMap k v -> k -> v
 at MKMap{keyMap, valMap} k =  valMap M.! (keyMap M.! k)
@@ -83,6 +99,7 @@ mkMKMap :: forall k ik v. (Ord k, Ord ik, Enum ik, Bounded ik)
         => (Proxy ik) -- ^ type of intermediate key
         -> MKMap k v -- ^ new map
 mkMKMap _ = MKMap mempty (minBound :: ik) mempty
+{-# INLINE mkMKMap #-}
 
 instance (Show k, Show v) => Show (MKMap k v) where
   showsPrec d m = Show.showString "fromList " . (showsPrec d $ toList m)
