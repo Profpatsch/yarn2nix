@@ -13,8 +13,9 @@ ghc-options:
 
 dependencies:
   - base == 4.*
-  - yarn-lock == 0.2.*
+  - yarn-lock == 0.3.*
   - aeson >= 1.0
+  - async-pool == 0.9.*
   - bytestring
   - containers
   - filepath
@@ -27,6 +28,8 @@ dependencies:
   - regex-tdfa == 1.2.*
   - regex-tdfa-text == 1.0.0.*
   - data-fix
+  - process
+  - either
 
 library:
   source-dirs: src
@@ -37,3 +40,8 @@ executables:
     dependencies:
       - yarn2nix
       - directory >= 1.2
+  setup-node-package-paths:
+    main: SetupNodePackagePaths.hs
+    dependencies:
+      - yarn2nix
+      - optparse-applicative == 0.13.*

@@ -1,32 +1,88 @@
-{-# LANGUAGE OverloadedStrings, TupleSections, ScopedTypeVariables, ViewPatterns, RecordWildCards, NoImplicitPrelude, LambdaCase, NamedFieldPuns, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings, TupleSections, ScopedTypeVariables, ViewPatterns, RecordWildCards, NoImplicitPrelude, LambdaCase, NamedFieldPuns, GeneralizedNewtypeDeriving, DeriveFunctor #-}
 module Distribution.Nixpkgs.Nodejs.FromYarnLock
-( toStdout
-, mkPackageSet
+(
+-- ( toStdout
+-- , mkPackageSet
+resolveLockfile
 ) where
 
 import Protolude
 import Control.Monad.Writer.Lazy (Writer, tell, runWriter)
+import qualified Control.Monad.Trans.Either as E
+import Data.Foldable (foldr1)
 import Data.Fix (Fix(Fix))
 import qualified Data.Text as T
 import qualified Data.Map as M
 import qualified Data.MultiKeyedMap as MKM
+import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Types as AesonT
+import qualified System.Process as Process
 
 import Nix.Expr
 import Nix.Expr.Additions
 import Nix.Pretty (prettyNix)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import qualified Control.Concurrent.Async.Pool as Async
 
-import Yarn.Lock (PackageKey(..), Package(..), Lockfile, RemoteFile(..))
 import qualified Yarn.Lock as YL
+import qualified Yarn.Lock.Types as YLT
+import qualified Yarn.Lock.Helpers as YLH
 import Distribution.Nixpkgs.Nodejs.Utils
 
+-- | A thing whose hash is already known (“resolved”).
+--
+-- Only packages with known hashes are truly “locked”.
+data Resolved a = Resolved
+  { sha1sum :: Text
+  , resolved :: a
+  } deriving (Show, Eq, Functor)
 
+-- | In order to write a nix file, all packages need to know their shasums first.
+type ResolvedLockfile = MKM.MKMap YLT.PackageKey (Resolved YLT.Package)
+
+-- | Resolve all packages by downloading their sources if necessary.
+resolveLockfile :: YLT.Lockfile -> IO ResolvedLockfile
+resolveLockfile = traverse (\(YLT.Package{..}) ->
+    resolve remote >>= \case
+      (Left err) -> panic err
+      (Right resRemote) -> do
+        case resRemote of
+          (Resolved _ r@YLT.GitRemote{..}) -> print r
+          _ -> pass
+        pure $ fmap (\remote -> YLT.Package{..}) resRemote)
+  where
+    resolve :: YLT.Remote -> IO (Either Text (Resolved YLT.Remote))
+    resolve = E.runEitherT . \case
+      (resolved@YLT.FileRemote{..}) ->
+        pure $ Resolved{ sha1sum = fileSha1, .. }
+      (resolved@YLT.GitRemote{..}) -> do
+        sha1sum <- fetchFromGit gitRepoUrl gitRev
+        pure $ Resolved{..}
+
+    fetchFromGit :: Text -> Text -> E.EitherT Text IO Text
+    fetchFromGit repo rev = do
+      out <- liftIO $ Process.readProcessWithExitCode "nix-prefetch-git"
+               ["--url", toS repo, "--rev", toS rev, "--hash", "sha1"] ""
+      case out of
+        ((ExitFailure _), _, err) -> E.left $ toS err
+        (ExitSuccess, out, _) -> E.hoistEither
+          $ first (\decErr -> "parsing json output failed:\n"
+                    <> toS decErr <> "\nThe output was:\n" <> toS out)
+            $ do val <- Aeson.eitherDecode' (toS out)
+                 AesonT.parseEither
+                   (Aeson.withObject "PrefetchOutput" (Aeson..: "sha1")) val
+
+
+
+{-
 -- | Pretty print the nixpkgs version of @yarn.lock@ to stdout.
-toStdout  :: Lockfile -> IO ()
+toStdout  :: YLT.Lockfile -> IO ()
 toStdout lf = do
   let (res, warnings) = runWriter $ mkPackageSet lf
-
+  PP.putDoc . foldr1 (PP.<$$>)
+    $ map (PP.text . toS . ("Warning: "<>) . unWarn) warnings
   PP.putDoc . prettyNix $ res
+-}
 
 -- CONVENTION: *Sym is a nix symbol
 -- We keep them Text, because that’s what they are in hnix
@@ -152,11 +208,12 @@ staticBindings = longDefinitions ++ shortenedDefinitions
           Just prf -> replRHS $ mkSym prf !!. bindingSym
 
 -- TODO: improve
-data Warning = Warn Text
+newtype Warning = Warn { unWarn :: Text }
 
+{-
 -- | Convert a @yarn.lock@ to a nix expression.
-mkPackageSet :: Lockfile -> Writer [Warning] NExpr
-mkPackageSet (YL.decycle -> lf) = do
+mkPackageSet :: YLT.Lockfile -> Writer [Warning] NExpr
+mkPackageSet (YLH.decycle -> lf) = do
   pkgMap <- sequence $ M.mapWithKey recognizeOrWarn
     -- TODO: use true PackageKey mappings, not the flat version
            $ MKM.flattenKeys lf
@@ -169,17 +226,17 @@ mkPackageSet (YL.decycle -> lf) = do
       (mkSym fixSym @@ "pkgs")
   where
     -- | set of all package
-    recognizeOrWarn :: PackageKey -> Package -> Writer [Warning] NExpr
+    recognizeOrWarn :: YLT.PackageKey -> YLT.Package -> Writer [Warning] NExpr
     recognizeOrWarn key pkg = case recognizeRegistry regStr of
          Nothing -> tell [tmpWarn] >> pure (mk $mkStr regStr)
          Just reg -> pure $ mk (shortSym $ registryShortenedBinding reg)
       where
-        mk x = mkPackage (name key) x pkg
+        mk x = mkPackage (YLT.name key) x pkg
         regStr = url $ resolved pkg
         tmpWarn :: Warning
         tmpWarn = Warn $ "Package `" <> packageKeyToIdentifier key
                <> "` contains unknown registry, " <> url (resolved pkg)
-    pkgSet :: Map PackageKey NExpr -> NExpr
+    pkgSet :: Map YLT.PackageKey NExpr -> NExpr
     pkgSet = mkNonRecSet . M.elems . M.mapWithKey
                (\key val -> packageKeyToIdentifier key $$= val)
 
@@ -202,8 +259,8 @@ in fix attrs
 -}
 
 -- | A single package expression.
-mkPackage :: Text -> NExpr -> Package -> NExpr
-mkPackage name' registry (Package ver remote deps optdeps) = (shortSym pkgBuildFn)
+mkPackage :: Text -> NExpr -> YLT.Package -> NExpr
+mkPackage name' registry (YLT.Package ver remote deps optdeps) = (shortSym pkgBuildFn)
   @@ mkStr name' @@ mkStr ver @@ registry
   @@ mkStr (sha1sum remote) @@ depList
   where
@@ -211,3 +268,5 @@ mkPackage name' registry (Package ver remote deps optdeps) = (shortSym pkgBuildF
     depList = mkList (((mkSym selfPkgSym) !!.)
                       . packageKeyToIdentifier <$> (deps <> optdeps))
 
+
+-}

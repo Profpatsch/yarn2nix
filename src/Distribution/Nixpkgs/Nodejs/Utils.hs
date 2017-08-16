@@ -1,9 +1,9 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RecordWildCards #-}
 module Distribution.Nixpkgs.Nodejs.Utils where
 
 import Protolude
-import Yarn.Lock (PackageKey(..))
+import qualified Yarn.Lock.Types as YLT
 
 -- | Representation of a PackageKey as nix attribute name.
-packageKeyToIdentifier :: PackageKey -> Text
-packageKeyToIdentifier pk = name pk <> "@" <> npmSemver pk
+packageKeyToIdentifier :: YLT.PackageKey -> Text
+packageKeyToIdentifier (YLT.PackageKey{..}) = name <> "@" <> npmVersionSpec

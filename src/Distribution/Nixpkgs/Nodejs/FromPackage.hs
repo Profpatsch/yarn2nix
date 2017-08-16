@@ -9,10 +9,10 @@ import Nix.Expr.Additions
 
 import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToIdentifier)
 import qualified Distribution.Nodejs.Package as NP
-import Yarn.Lock (PackageKey(..))
+import qualified Yarn.Lock.Types as YLT
 
-depsToPkgKeys :: NP.Dependencies -> [PackageKey]
-depsToPkgKeys = map (\(k, v) -> PackageKey k v) . HML.toList
+depsToPkgKeys :: NP.Dependencies -> [YLT.PackageKey]
+depsToPkgKeys = map (\(k, v) -> YLT.PackageKey k v) . HML.toList
 
 -- | generate a nix expression that translates your package.nix
 --

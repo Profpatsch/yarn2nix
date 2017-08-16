@@ -1,17 +1,18 @@
 with import <nixpkgs> {};
 (haskellPackages.override {
   overrides = self: super:
-    let yarn-lock = super.mkDerivation {
+    let yarn-lock = super.mkDerivation rec {
           pname = "yarn-lock";
-          version = "0.1.0";
+          version = "0.3.1";
+          # src = ../../haskell/yarn-lock;
           src = fetchFromGitHub {
             owner = "Profpatsch";
             repo = "yarn-lock";
-            rev = "0.2.0";
-            sha256 = "0cf1g2z6prkw6rs7a6kg685l9v9qxfcfd56wnff04hrrdb6rxdgf";
+            rev = version;
+            sha256 = "0qacc5x82kggzxgzn46irrqczyvfpdvhdar99ymk99fv7shzhgaf";
           };
           license = lib.licenses.mit;
-          buildDepends = with self; [ megaparsec protolude regex-tdfa regex-tdfa-text ansi-wl-pprint tasty-hunit tasty-th ];
+          buildDepends = with self; [ megaparsec protolude tasty-hunit tasty-th either neat-interpolation tasty-quickcheck ];
           buildTools = [ self.hpack ];
           preConfigure = ''hpack'';
         };
@@ -22,6 +23,11 @@ with import <nixpkgs> {};
             yarn-lock
             hnix
             hpack
+            aeson
+            async-pool
+            ansi-wl-pprint
+            regex-tdfa
+            regex-tdfa-text
           ];
           in super.mkDerivation {
             pname = "pkg-env";
