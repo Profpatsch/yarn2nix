@@ -121,24 +121,34 @@ astToPackage = V.validationToEither . validate
         vToM :: Val a -> Maybe a
         vToM = hush . V.validationToEither
 
-        -- | "https://blafoo.com/a/b#alonghash" -> "alonghash"
-        findUrlHash :: Text -> Maybe Text
-        findUrlHash url = pure (Text.splitOn "#" url)
-                          -- or the whole link is used
-                          >>= guarded (\xs -> length xs > 1)
-                          >>= lastMay
-                          -- should also not end with #
-                          >>= guarded (/= "")
+        -- | "https://blafoo.com/a/b#alonghash"
+        --   -> ("https://blafoo.com/a/b", "alonghash")
+        -- we assume the # can only occur exactly once
+        findUrlHash :: Text -> (Text, Maybe Text)
+        findUrlHash url = case Text.splitOn "#" url of
+          [url']       -> (url', Nothing)
+          [url', ""]   -> (url', Nothing)
+          [url', hash] -> (url', Just hash)
+          _           -> panic "checkRemote: # should only appear exactly once!"
 
         checkGit = do
           resolved <- vToM $ getField text "resolved" fs
           -- either in uid field or after the hash in the “resolved” URL
-          gitRev <- vToM (getField text "uid" fs)
-            <|> if any (`Text.isPrefixOf` resolved) ["git+", "git://"]
-                then findUrlHash resolved else Nothing
-          pure $ T.GitRemote { T.gitRepoUrl = resolved, .. }
+          (repo, gitRev) <- do
+            let (repo', mayHash) = findUrlHash resolved
+            hash <- vToM (getField text "uid" fs)
+              <|> if any (`Text.isPrefixOf` resolved) ["git+", "git://"]
+                  then mayHash else Nothing
+            pure (repo', hash)
+          pure $ T.GitRemote
+            { T.gitRepoUrl = noPrefix "git+" repo , .. }
+
+        -- | ensure the prefix is removed
+        noPrefix :: Text -> Text -> Text
+        noPrefix pref hay = maybe hay identity $ Text.stripPrefix pref hay
 
         checkFile = do
-          fileUrl <- vToM (getField text "resolved" fs)
-          fileSha1 <- findUrlHash fileUrl
+          resolved <- vToM (getField text "resolved" fs)
+          let (fileUrl, mayFileSha1) = findUrlHash resolved
+          fileSha1 <- mayFileSha1
           pure $ T.FileRemote{..}

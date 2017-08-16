@@ -33,14 +33,18 @@ case_gitRemote = do
       ast link_ hasUid = minimalAst $
           [ ("resolved", Left link_) ]
           <> hasUid `orEmpty` ("uid", Left ref)
-  let gitRefIs parsed ref' = parsed
+  let gitRemIs parsed (url', ref') = parsed
         <&> T.remote >>= \case
-          T.GitRemote{..} -> assertEqual "url ref" ref' gitRev
+          T.GitRemote{..} -> do
+            assertEqual "url url" url' gitRepoUrl
+            assertEqual "url ref" ref' gitRev
           a -> assertFailure ("should be GitRemote, is " <> show a)
-  astToPackageSuccess (ast ("git://github.com/bla#" <> ref) False)
-    `gitRefIs` ref
-  astToPackageSuccess (ast ("https://github.com/bla") True)
-    `gitRefIs` ref
+  let url1 = "git://github.com/bla"
+  astToPackageSuccess (ast (url1 <> "#" <> ref) False)
+    `gitRemIs` (url1, ref)
+  let url2 = "https://github.com/bla"
+  astToPackageSuccess (ast ("git+" <> url2) True)
+    `gitRemIs` (url2, ref)
 
 case_fileRemote :: Assertion
 case_fileRemote = do
