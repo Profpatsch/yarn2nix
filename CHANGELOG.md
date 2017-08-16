@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.3.1] - 2017-08-16
+
+### Added
+- Functor, Foldable and Traversable instances for MKMap
+
+### Fixed
+- Remote URL parsing strips more unneeded elements
+
 ## [0.3] - 2017-08-16
 
 This is a major overhaul, changing nearly every part of the API
