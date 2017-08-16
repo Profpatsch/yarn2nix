@@ -8,15 +8,16 @@ After parsing yarn.lock files in 'Yarn.Lock.Parse',
 you want to find out semantic information from the AST
 and ultimately get a 'Lockfile'.
 -}
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, ApplicativeDo, RecordWildCards #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, ApplicativeDo, RecordWildCards, NamedFieldPuns #-}
 module Yarn.Lock.File
-( astToPackage, ConversionError(..)
+( fromPackages
+, astToPackage, ConversionError(..)
 ) where
 
 import Protolude
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
-import qualified Data.Text as T
+import qualified Data.Text as Text
 import qualified Data.Either.Validation as V
 
 import qualified Yarn.Lock.Parse as Parse
@@ -28,18 +29,19 @@ import qualified Data.MultiKeyedMap as MKM
 --
 -- It’s a dumb conversion, you should probably apply
 -- the 'Helpers.decycle' function afterwards.
-toLockfile :: [T.Keyed T.Package] -> T.Lockfile
-toLockfile = MKM.fromList T.lockfileIkProxy
+fromPackages :: [T.Keyed T.Package] -> T.Lockfile
+fromPackages = MKM.fromList T.lockfileIkProxy
              . fmap (\(T.Keyed ks p) -> (ks, p))
 
 data ConversionError
   = MissingField Text
-  | WrongType
+  | WrongType { fieldName :: Text, fieldType :: Text }
   | UnknownRemoteType
   deriving (Show, Eq)
 
-newtype FieldParser a = FieldParser
-  { parseField :: Either Text Parse.PackageFields -> Maybe a }
+data FieldParser a = FieldParser
+  { parseField :: Either Text Parse.PackageFields -> Maybe a
+  , parserName :: Text }
 type Val = V.Validation (NE.NonEmpty ConversionError)
 
 -- | Parse an AST 'PackageFields' to a 'T.Package', which has
@@ -59,6 +61,7 @@ astToPackage = V.validationToEither . validate
     -- | Parse a field from a 'PackageFields'.
     getField :: FieldParser a -> Text -> Parse.PackageFields -> Val a
     getField = getFieldImpl Nothing
+    -- | Parse an optional field and insert the empty monoid value
     getFieldOpt :: Monoid a => FieldParser a -> Text -> Parse.PackageFields -> Val a
     getFieldOpt = getFieldImpl (Just mempty)
 
@@ -69,19 +72,24 @@ astToPackage = V.validationToEither . validate
           Nothing -> case mopt of
             Just opt -> Right opt
             Nothing  -> Left $ MissingField fieldName
-          Just val -> note WrongType (parseField typeParser val)
+          Just val -> note
+            (WrongType { fieldName, fieldType = parserName typeParser })
+            $ parseField typeParser val
 
     -- | Parse a simple field to type 'Text'.
     text :: FieldParser Text
-    text = FieldParser $ either Just (const Nothing)
+    text = FieldParser { parseField = either Just (const Nothing)
+                       , parserName = "text" }
 
     -- | Parse a field nested one level to a list of 'PackageKey's.
     keylist :: FieldParser [T.PackageKey]
-    keylist = FieldParser $ either (const Nothing)
+    keylist = FieldParser
+      { parserName = "list of package keys"
+      , parseField = either (const Nothing)
              (\(Parse.PackageFields inner) ->
                   for (M.toList inner) $ \(k, v) -> do
                     npmVersionSpec <- parseField text v
-                    pure $ T.PackageKey { T.name = k, ..})
+                    pure $ T.PackageKey { T.name = k, ..}) }
 
     -- | Appling heuristics to the field contents to find the
     -- correct remote type.
@@ -101,7 +109,7 @@ astToPackage = V.validationToEither . validate
 
         -- | "https://blafoo.com/a/b#alonghash" -> "alonghash"
         findUrlHash :: Text -> Maybe Text
-        findUrlHash url = pure (T.splitOn "#" url)
+        findUrlHash url = pure (Text.splitOn "#" url)
                           -- or the whole link is used
                           >>= guarded (\xs -> length xs > 1)
                           >>= lastMay
@@ -112,7 +120,7 @@ astToPackage = V.validationToEither . validate
           resolved <- vToM $ getField text "resolved" fs
           -- either in uid field or after the hash in the “resolved” URL
           gitRev <- vToM (getField text "uid" fs)
-            <|> if any (`T.isPrefixOf` resolved) ["git+", "git://"]
+            <|> if any (`Text.isPrefixOf` resolved) ["git+", "git://"]
                 then findUrlHash resolved else Nothing
           pure $ T.GitRemote { T.gitRepoUrl = resolved, .. }
 

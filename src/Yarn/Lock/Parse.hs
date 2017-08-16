@@ -8,7 +8,7 @@ Stability : experimental
 This module provides a parser for the AST of @yarn.lock@ files.
 -}
 module Yarn.Lock.Parse
-( PackageFields(..)
+( PackageFields(..), Package
 -- , Yarn.Lock.parse
 -- | = Parsers
 -- , lockfile, packageListToLockfile
@@ -43,19 +43,12 @@ import qualified Yarn.Lock.Types as T
 -- The actual conversion to semantic structures needs to be done afterwards.
 newtype PackageFields = PackageFields (Map Text (Either Text PackageFields))
   deriving (Show, Eq, Monoid)
-
--- | Convenience function that converts errors to Text.
---
--- The actual parsers are below.
--- parse :: Text -- ^ name of source file
---       -> Text -- ^ input for parser
---       -> Either Text Lockfile
--- parse src inp = first (T.pack . parseErrorPretty)
---               $ MP.parse lockfile (T.unpack src) inp
+type Package = T.Keyed (SourcePos, PackageFields)
 
 
--- | Parse a complete yarn.lock into an abstract syntax tree
-packageList :: Parser [T.Keyed PackageFields]
+-- | Parse a complete yarn.lock into an abstract syntax tree,
+-- keeping the source positions of each package entry.
+packageList :: Parser [Package]
 packageList = many $ (skipMany (comment <|> eol)) *> packageEntry
                 where comment = char '#' *> manyTill anyChar eol
 
@@ -74,14 +67,15 @@ packageList = many $ (skipMany (comment <|> eol)) *> packageEntry
 --   optionalDependencies:
 --     uglify-js "^2.6"
 -- @
-packageEntry :: Parser (T.Keyed PackageFields)
-packageEntry = label "package entry" $
+packageEntry :: Parser (T.Keyed (SourcePos, PackageFields))
+packageEntry = label "package entry" $ do
+  pos <- getPosition
   -- A package entry is a non-indented
-  nonIndented
-    $ uncurry T.Keyed
-      -- block that has a header of package keys
-      -- and an indented part that contains fields
-      <$> indentedFieldsWithHeader packageKeys
+  (keys, pkgs) <- nonIndented
+            -- block that has a header of package keys
+            -- and an indented part that contains fields
+            $ indentedFieldsWithHeader packageKeys
+  pure $ T.Keyed keys (pos, pkgs)
 
 -- | The list of PackageKeys that index the same Package
 --

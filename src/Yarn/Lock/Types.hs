@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-|
 Module : Yarn.Lock.Types
 Description : Types for yarn.lock files
@@ -13,6 +14,9 @@ import qualified Data.MultiKeyedMap as MKM
 --
 -- It is a multi-keyed map (each value can be referenced by multiple keys).
 -- This is achieved by using an intermediate key @ik@.
+-- 
+-- TODO
+-- newtype Lockfile = Lockfile (MKM.MKMap PackageKey Package)
 type Lockfile = MKM.MKMap PackageKey Package
 
 -- | Proxy type for our MKMap intermediate key
@@ -29,7 +33,7 @@ data PackageKey = PackageKey
 
 -- | Something with a list of 'PackageKey's pointing to it.
 data Keyed a = Keyed [PackageKey] a
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Functor)
 
 -- | The actual npm package with dependencies and a way to download.
 data Package = Package
