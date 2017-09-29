@@ -30,6 +30,7 @@ dependencies:
   - data-fix
   - process
   - either
+  - stm
 
 library:
   source-dirs: src
