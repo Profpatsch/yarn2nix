@@ -15,7 +15,7 @@ yarn = "./yl"
 
 ps = do
   Right res <- makeitso
-  putDoc $ prettyNix $ mkPackageSet defaultOutput $ convertLockfile defaultOutput res
+  putDoc $ prettyNix $ mkPackageSet $ convertLockfile res
 
 makeitso = do
   Right f <- parseFile yarn
