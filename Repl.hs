@@ -2,13 +2,20 @@
 module Repl where
 
 import Prelude ()
-import Distribution.Nixpkgs.Nodejs.FromYarnLock
+import Distribution.Nixpkgs.Nodejs.ResolveLockfile
+import Distribution.Nixpkgs.Nodejs.OptimizedNixOutput
 import Protolude
 import Yarn.Lock
 import Yarn.Lock.Types
 import Control.Concurrent.Chan
+import Text.PrettyPrint.ANSI.Leijen (putDoc)
+import Nix.Pretty (prettyNix)
 
 yarn = "./yl"
+
+ps = do
+  Right res <- makeitso
+  putDoc $ prettyNix $ mkPackageSet defaultOutput $ convertLockfile defaultOutput res
 
 makeitso = do
   Right f <- parseFile yarn
