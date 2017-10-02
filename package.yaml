@@ -18,6 +18,7 @@ dependencies:
   - async-pool == 0.9.*
   - bytestring
   - containers
+  - directory >= 1.2
   - filepath
   - unordered-containers
   - mtl
@@ -40,7 +41,6 @@ executables:
     main: Main.hs
     dependencies:
       - yarn2nix
-      - directory >= 1.2
   setup-node-package-paths:
     main: SetupNodePackagePaths.hs
     dependencies:
