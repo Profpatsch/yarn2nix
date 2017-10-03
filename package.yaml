@@ -17,7 +17,7 @@ ghc-options:
   - -Wall
 
 dependencies:
-  - base >= 4.9
+  - base >= 4.9 && < 4.10
   - containers
   - text
   - megaparsec == 5.* || == 6.*
