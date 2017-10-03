@@ -46,9 +46,22 @@ nestedPackage = [text|
     dependencies:
       core-util-is "~1.0.0"
       is.array ""
-      string_decoder "~0.10.x"
+      "@types/string_decoder" "~0.10.x"
       johnny-dep 2.3.4
   |]
+
+nestedFieldExample :: Text
+nestedFieldExample = [text|
+  dependencies:
+    core-util-is "~1.0.0"
+    is.array ""
+    "@types/string_decoder" "~0.10.x"
+    johnny-dep 2.3.4
+  |]
+
+case_nestedField :: Assertion
+case_nestedField = do
+  void $ parseSuccess nestedField nestedFieldExample
 
 case_NestedPackage :: Assertion
 case_NestedPackage = do
@@ -62,7 +75,9 @@ case_NestedPackage = do
         (Just (Right (PackageFields nested))) -> do
           assertEqual "nested keys" 4 $ length nested
           assertEqual "dep exists" (Just (Left "2.3.4"))
-            $ Map.lookup "johnny-dep" nested 
+            $ Map.lookup "johnny-dep" nested
+          assertEqual "there can be @" (Just (Left "~0.10.x"))
+            $ Map.lookup "@types/string_decoder" nested
 
 case_PackageField :: IO ()
 case_PackageField = do
@@ -81,13 +96,16 @@ case_PackageField = do
 
 case_PackageKey :: Assertion
 case_PackageKey = do
-  let key = "foo@^1.3.4, bar@blafoo234, xnu@:\n"
+  let key = "foo@^1.3.4, bar@blafoo234, xnu@, @types/foo@@:\n"
   parseSuccess packageKeys key
     >>= \keys -> do
-      keys @=? [ PackageKey "foo" "^1.3.4"
+      keys @?= [ PackageKey "foo" "^1.3.4"
                , PackageKey "bar" "blafoo234"
                -- yes, the version can be empty …
-               , PackageKey "xnu" ""]
+               , PackageKey "xnu" ""
+               -- and yes, package names can contain `@`
+               , PackageKey "@types/foo@" ""
+               ]
 
 parseSuccess :: Parser a -> Text -> IO a
 parseSuccess parser string = do

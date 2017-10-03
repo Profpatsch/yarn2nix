@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoImplicitPrelude, GeneralizedNewtypeDeriving, OverloadedStrings #-}
 {-|
 Module : Yarn.Lock.Parse
 Description : Parser for yarn.lock files
@@ -16,13 +16,17 @@ module Yarn.Lock.Parse
 , packageList
 , packageEntry
 -- = internal parsers
-, field, packageKeys, packageKey
+, field, nestedField, simpleField
+, packageKeys, packageKey
 ) where
 
 import Protolude hiding (try)
 import qualified Data.Char as Ch
-import qualified Data.Text as Text
+import qualified Data.Text as T
 import qualified Data.Map.Strict as M
+import Control.Monad (fail)
+import Unsafe (unsafeInit, unsafeLast)
+
 import Text.Megaparsec as MP hiding (space)
 import Text.Megaparsec.Text
 import qualified Text.Megaparsec.Lexer as MPL
@@ -30,7 +34,7 @@ import qualified Text.Megaparsec.Lexer as MPL
 -- import qualified Data.MultiKeyedMap as MKM
 -- import Data.Proxy (Proxy(..))
 
-import qualified Yarn.Lock.Types as T
+import qualified Yarn.Lock.Types as YLT
 
 
 -- | The @yarn.lock@ format doesn’t specifically include a fixed scheme,
@@ -44,7 +48,7 @@ newtype PackageFields = PackageFields (Map Text (Either Text PackageFields))
 
 -- | A parsed 'Package' AST has one or more keys, a position in the original files
 -- and a collection of fields.
-type Package = T.Keyed (SourcePos, PackageFields)
+type Package = YLT.Keyed (SourcePos, PackageFields)
 
 
 -- | Parse a complete yarn.lock into an abstract syntax tree,
@@ -67,8 +71,9 @@ packageList = many $ (skipMany (comment <|> eol)) *> packageEntry
 --     source-map "^0.4.4"
 --   optionalDependencies:
 --     uglify-js "^2.6"
+--     "
 -- @
-packageEntry :: Parser (T.Keyed (SourcePos, PackageFields))
+packageEntry :: Parser (YLT.Keyed (SourcePos, PackageFields))
 packageEntry = label "package entry" $ do
   pos <- getPosition
   -- A package entry is a non-indented
@@ -76,14 +81,14 @@ packageEntry = label "package entry" $ do
             -- block that has a header of package keys
             -- and an indented part that contains fields
             $ indentedFieldsWithHeader packageKeys
-  pure $ T.Keyed keys (pos, pkgs)
+  pure $ YLT.Keyed keys (pos, pkgs)
 
 -- | The list of PackageKeys that index the same Package
 --
 -- @
 -- align-text@^0.1.1, align-text@^0.1.3:\\n
 -- @
-packageKeys :: Parser [T.PackageKey]
+packageKeys :: Parser [YLT.PackageKey]
 packageKeys = label "package keys" $ do
   firstEls <- many (try $ lexeme $ packageKey ":," <* char ',')
   lastEl   <-                      packageKey ":"  <* char ':'
@@ -92,21 +97,26 @@ packageKeys = label "package keys" $ do
 -- | A packageKey is @\<package-name\>\@\<semver\>@;
 --
 -- If the semver contains spaces, it is also quoted with @"@.
-packageKey :: [Char] -> Parser T.PackageKey
+packageKey :: [Char] -> Parser YLT.PackageKey
 packageKey separators = inString (pkgKey "\"")
          -- if no string delimiters is used we need to check for the separators
          -- this file format is shit :<
          <|> pkgKey separators
          <?> "package key"
   where
-    pkgKey valueChars = do
-      pkgName <- someTextOf (noneOf "@") <?> "package name part of package key"
-      _ <- char '@'
-      semver <- (someTextOf (noneOf valueChars))
-                <|> (pure Text.empty <?> "an empty semver")
-                <?> "semver part of package key"
-      pure $ T.PackageKey pkgName semver
-
+    pkgKey :: [Char] -> Parser YLT.PackageKey
+    pkgKey valueChars = label "package key" $ do
+      key <- someTextOf (noneOf valueChars)
+      -- okay, here’s the rub:
+      -- `@` is used for separation, but package names containing `@`
+      -- are totally a thing. As first character, as well.
+      -- As are package keys without any semver whatsoever, thus ending
+      -- with `@`.
+      -- Did I mention this file format is big chunks of elephant shit?
+      case (\(n, v) -> (T.dropEnd 1 n, v)) $ T.breakOnEnd "@" key of
+        ("", _) -> fail "packageKey: package name can not be empty"
+        (n, "") -> pure $ YLT.PackageKey n ""
+        (n,  v) -> pure $ YLT.PackageKey n v
 
 -- | Either a simple or a nested field.
 field :: Parser (Text, Either Text PackageFields)
@@ -115,20 +125,22 @@ field = try nested <|> simple <?> "field"
     simple = fmap Left <$> simpleField
     nested = fmap Right <$> nestedField
 
--- | A key-value pair, separated by space. The value is enclosed in "".
+-- | A key-value pair, separated by space.
+-- Key any value may be enclosed in "".
 -- Returns key and value.
 simpleField :: Parser (Text, Text)
-simpleField = (,) <$> lexeme symbolChars
+simpleField = (,) <$> lexeme (strSymbolChars <|> symbolChars)
                   -- valueChars may be in Strings or maybe not >:
                   -- this file format is absolute garbage
                   <*> (strValueChars <|> valueChars)
                   <?> "simple field"
   where
     valueChars, strValueChars :: Parser Text
-    valueChars = someTextOf (noneOf "\n\r\"")
+    valueChars = someTextOf (noneOf ("\n\r\"" :: [Char]))
+    strSymbolChars = inString $ symbolChars
     strValueChars = inString $ valueChars
       -- as with packageKey semvers, this can be empty
-      <|> (pure Text.empty <?> "an empty value field")
+      <|> (pure T.empty <?> "an empty value field")
 
 -- | Similar to a @simpleField@, but instead of a string
 -- we get another block with deeper indentation.
@@ -162,13 +174,14 @@ indentedFieldsWithHeader header = indentBlock $ do
 symbolChars :: Parser Text
 symbolChars = label "key symbol" $ someTextOf $ satisfy
   (\c -> Ch.isAscii c &&
-     (Ch.isLower c || Ch.isUpper c || Ch.isNumber c || c `elem` "-_."))
+     (Ch.isLower c || Ch.isUpper c || Ch.isNumber c || c `elem` special))
+  where special = "-_.@/" :: [Char]
 
 
 -- text versions of parsers & helpers
 
 someTextOf :: Parser Char -> Parser Text
-someTextOf c = Text.pack <$> some c
+someTextOf c = T.pack <$> some c
 
 -- | parse everything as inside a string
 inString :: Parser a -> Parser a
