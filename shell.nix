@@ -22,6 +22,7 @@
               ghcid
               cabal-install
               hpack
+              hscolour
               (hoogleLocal {
                 packages = buildDepends;
               })

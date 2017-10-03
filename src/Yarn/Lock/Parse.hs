@@ -15,7 +15,7 @@ module Yarn.Lock.Parse
 -- ** Parsers
 , packageList
 , packageEntry
--- = internal parsers
+-- * Internal Parsers
 , field, nestedField, simpleField
 , packageKeys, packageKey
 ) where
@@ -25,7 +25,6 @@ import qualified Data.Char as Ch
 import qualified Data.Text as T
 import qualified Data.Map.Strict as M
 import Control.Monad (fail)
-import Unsafe (unsafeInit, unsafeLast)
 
 import Text.Megaparsec as MP hiding (space)
 import Text.Megaparsec.Text
