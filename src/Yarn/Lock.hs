@@ -18,7 +18,8 @@ module Yarn.Lock
 , LockfileError(..), PackageErrorInfo(..)
 ) where
 
-import Protolude
+import Protolude hiding ((<>))
+import Data.Semigroup ((<>))
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NE
 import qualified Text.Megaparsec as MP
