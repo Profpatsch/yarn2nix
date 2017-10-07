@@ -68,12 +68,9 @@ antiquote vals = Fix . N.NStr . N.DoubleQuoted
 data Registry = Registry
   { registrySym :: NSym
     -- ^ nix symbol used in the output file
-  , registryBuilder :: NVar
-                    -- ^ package name
-                    -> NVar
-                    -- ^ package version
-                    -> [AStrVal]
-    -- ^ constructs a nix function that in turn constructs a repository string
+  , registryBuilder :: NVar -> NVar -> [AStrVal]
+    -- ^ constructs a nix function that in turn constructs a repository string;
+    -- the function takes a package name and package version
   }
 
 data Git = Git
@@ -128,9 +125,6 @@ recognizeRegistry fileUrl = snd <$> filterRegistry fileUrl
 convertLockfile :: Res.ResolvedLockfile -> M.Map Text PkgRef
 convertLockfile = M.fromList . foldMap convert . MKM.toList
   where
-    -- | remove symbols not allowed in nix derivation names
-    sanitizePackageName :: Text -> Text
-    sanitizePackageName n = foldr (\x t -> T.replace x "-" t) n ["@", "/"]
     -- | For the list of package keys we generate a 'PkgRef' each
     -- and then one actual 'PkgDef'.
     convert :: (NE.NonEmpty YLT.PackageKey, (Res.Resolved YLT.Package))
@@ -143,7 +137,7 @@ convertLockfile = M.fromList . foldMap convert . MKM.toList
         { YLT.name = defName
         , YLT.npmVersionSpec = YLT.version pkg }
       pkgDataGeneric upstream = PkgData
-        { pkgDataName = sanitizePackageName defName
+        { pkgDataName = defName
         , pkgDataVersion = YLT.version pkg
         , pkgDataUpstream = upstream
         , pkgDataHashSum = hashSum
@@ -171,6 +165,8 @@ let
   prefixes = {
     yarn = n: v: "https://registry.yarnpkg.com/${n}/-/${n}-${v}.tgz";
   };
+
+  sanitizePackageName = builtins.replaceStrings ["@" "/"] ["-" "-"];
 
   # We want each package definition to be one line, by putting
   # the boilerplate into this function
@@ -202,6 +198,7 @@ mkPackageSet packages =
   NA.simpleParamSet ["fix", "fetchurl", "fetchgit", "buildNodePackage"]
     ==> N.mkLets
         (  [ "registries" $= N.mkNonRecSet (fmap (mkRegistry . snd) registries)
+           , "sanitizePackageName" $= sanitizePackageName
            , "nodeFilePackage" $= buildPkgFn
            , "nodeGitPackage" $= buildPkgGitFn
            , "identityRegistry" $= NA.multiParam ["url", "_", "_"] "url" ]
@@ -225,12 +222,19 @@ mkPackageSet packages =
     shorten :: [NSym] -> NExpr
     shorten s = maybe (concatNSyms s) (N.mkSym . unNSym) $ M.lookup s shortcuts
 
+    -- | remove symbols not allowed in nix derivation names
+    sanitizePackageName :: NExpr
+    sanitizePackageName = "builtins" !. "replaceStrings"
+                            @@ N.mkList [N.mkStr "@", N.mkStr "/"]
+                            @@ N.mkList [N.mkStr "-", N.mkStr "-"]
+
     -- | Build function boilerplate the build functions share in common.
     buildPkgFnGeneric :: [Text] -> NExpr -> NExpr
     buildPkgFnGeneric additionalArguments srcNExpr =
       NA.multiParam (["name", "version"] <> additionalArguments <> ["deps"])
         $ N.mkSym "buildNodePackage" @@ N.mkNonRecSet
-          [ N.inherit $ map N.StaticKey ["name", "version"]
+          [ "name" $= ("sanitizePackageName" @@ "name")
+          , N.inherit $ map N.StaticKey ["version"]
           , "src" $= srcNExpr
           , "nodeBuildInputs" $= "deps" ]
     -- | Building a 'YLT.FileRemote' package.
