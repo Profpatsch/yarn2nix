@@ -7,6 +7,7 @@ where
 import Protolude
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified System.Directory as Dir
 
 import qualified Nix.Pretty as NixP
@@ -66,7 +67,9 @@ cli = \case
     parseNode :: FilePath -> IO ()
     parseNode path = do
       NP.decode <$> BL.readFile path >>= \case
-        Right nodeModule -> print $ NixP.prettyNix $ NodeFP.genTemplate nodeModule
+        Right (NP.LoggingPackage (nodeModule, warnings)) -> do
+          for_ warnings $ TIO.hPutStrLn stderr . NP.formatWarning
+          print $ NixP.prettyNix $ NodeFP.genTemplate nodeModule
         Left err -> die' ("could not parse " <> toS path <> ":\n" <> show err)
 
 die' :: Text -> IO a

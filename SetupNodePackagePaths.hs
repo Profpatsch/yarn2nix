@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards, NoImplicitPrelude, LambdaCase, FlexibleContexts, NamedFieldPuns #-}
 import Protolude
+import qualified Data.Text.IO as TIO
 import qualified Control.Monad.Except as ExcT
 import qualified Control.Exception as Exc
 import qualified Data.ByteString.Lazy as BL
@@ -61,7 +62,12 @@ realMain Args{..} = do
     tryRead :: FilePath -> ExceptT [Char] IO BL.ByteString
     tryRead fp = tryIOMsg exc $ BL.readFile fp
       where exc e = fp <> " cannot be read:\n" <> e
-    tryDecode fp = ExcT.ExceptT . pure . first exc . NP.decode
+    tryDecode :: FilePath -> BL.ByteString -> ExceptT [Char] IO NP.Package
+    tryDecode fp fileBs = do
+      (pkg, warnings) <- NP.unLoggingPackage
+                      <$> ExcT.ExceptT (pure $ first exc $ NP.decode fileBs)
+      for_ warnings $ liftIO . TIO.hPutStrLn stderr . NP.formatWarning
+      pure pkg
       where exc e = fp <> " cannot be decoded\n" <> toS e
 
     go NP.Package{bin} = case argMode of

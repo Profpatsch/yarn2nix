@@ -37,7 +37,7 @@ case_binPaths = do
   parseSuccess bin (baseAnd [])
     >>= assertEqual "no bins" (NP.BinFiles mempty)
   where
-    bin = fmap NP.bin . A.parseJSON
+    bin = fmap (NP.bin . fst . NP.unLoggingPackage) . A.parseJSON
 
 parseSuccess :: (A.Value -> AT.Parser a) -> A.Value -> IO a
 parseSuccess p v = case AT.parse p v of

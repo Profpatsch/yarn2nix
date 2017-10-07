@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, DeriveGeneric, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE NoImplicitPrelude, DeriveGeneric, OverloadedStrings, RecordWildCards, LambdaCase #-}
 {-|
 Description: Parse and make sense of npm’s @package.json@ project files
 
@@ -7,11 +7,12 @@ They are documented on https://docs.npmjs.com/files/package.json and have a few 
 module Distribution.Nodejs.Package
 ( Package(..)
 , Bin(..), Man(..), Dependencies
-, decode
+, decode, LoggingPackage(..), Warning(..), formatWarning
 ) where
 
 import Protolude
 import Control.Monad (fail)
+import qualified Control.Monad.Writer.Lazy as WL
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.HashMap.Lazy as HML
@@ -19,6 +20,7 @@ import qualified System.FilePath as FP
 
 import Data.Aeson ((.:), (.:?), (.!=))
 import qualified Data.Aeson as A
+import qualified Data.Aeson.Types as AT
 
 -- | npm `package.json`. Not complete.
 --
@@ -37,6 +39,15 @@ data Package = Package
   , devDependencies :: Dependencies
   } deriving (Show, Eq)
 
+-- | 'Package' with a potential bunch of parsing warnings.
+newtype LoggingPackage = LoggingPackage
+  { unLoggingPackage :: (Package, [Warning]) }
+
+-- | Possible warnings from parsing.
+data Warning = WrongType
+  { wrongTypeField :: Text
+  , wrongTypeDefault :: Text }
+
 -- | The package’s executable files.
 data Bin
   = BinFiles (HML.HashMap Text FilePath)
@@ -54,19 +65,26 @@ data Man
 -- | Dependencies of a package.
 type Dependencies = HML.HashMap Text Text
 
-instance A.FromJSON Package where
-  parseJSON = A.withObject "Package" $ \v -> do
-    name            <- v .:  "name"
-    version         <- v .:  "version"
-    description     <- v .:? "description"
-    homepage        <- v .:? "homepage"
-    private         <- v .:? "private" .!= False
-    scripts         <- v .:? "scripts" .!= mempty
-    bin             <- parseBin name v
-    man             <- parseMan name v
-    license         <- v .:? "license"
-    dependencies    <- v .:? "dependencies" .!= mempty
-    devDependencies <- v .:? "devDependencies" .!= mempty
+instance A.FromJSON LoggingPackage where
+  parseJSON = A.withObject "Package" $ \v -> fmap LoggingPackage . WL.runWriterT $ do
+    let
+      l :: AT.Parser a -> WL.WriterT [Warning] AT.Parser a
+      l = WL.WriterT . fmap (\a -> (a, []))
+      tryWarn :: (AT.FromJSON a, Show a)
+              => Text -> a -> WL.WriterT [Warning] AT.Parser a
+      tryWarn field def = lift (v .:? field .!= def)
+                          <|> WL.writer (def, [WrongType field (show def)])
+    name            <- l $ v .:  "name"
+    version         <- l $ v .:  "version"
+    description     <- tryWarn "description" Nothing
+    homepage        <- tryWarn "homepage" Nothing
+    private         <- tryWarn "private" False
+    scripts         <- l $ v .:? "scripts" .!= mempty
+    bin             <- l $ parseBin name v
+    man             <- l $ parseMan name v
+    license         <- tryWarn "license" Nothing
+    dependencies    <- l $ v .:? "dependencies" .!= mempty
+    devDependencies <- l $ v .:? "devDependencies" .!= mempty
     pure Package{..}
     where
 
@@ -108,6 +126,10 @@ instance A.FromJSON Package where
             <|> pure (ManFiles mempty))
 
 -- | convenience
-decode :: BL.ByteString -> Either Text Package
+decode :: BL.ByteString -> Either Text LoggingPackage
 decode = first toS . A.eitherDecode
 
+formatWarning :: Warning -> Text
+formatWarning = ("Warning: " <>) . \case
+  (WrongType field def) ->
+    "field \"" <> field <> "\" has the wrong type. Defaulting to " <> def <> "."
