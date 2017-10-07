@@ -46,6 +46,7 @@ executables:
     dependencies:
       - yarn2nix
       - optparse-applicative == 0.13.*
+      - unix
 
 tests:
   yarn2nix-tests:
