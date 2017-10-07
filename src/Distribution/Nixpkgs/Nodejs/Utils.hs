@@ -5,5 +5,5 @@ import Protolude
 import qualified Yarn.Lock.Types as YLT
 
 -- | Representation of a PackageKey as nix attribute name.
-packageKeyToIdentifier :: YLT.PackageKey -> Text
-packageKeyToIdentifier (YLT.PackageKey{..}) = name <> "@" <> npmVersionSpec
+packageKeyToSymbol :: YLT.PackageKey -> Text
+packageKeyToSymbol (YLT.PackageKey{..}) = name <> "@" <> npmVersionSpec

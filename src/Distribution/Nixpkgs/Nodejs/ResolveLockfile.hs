@@ -25,7 +25,7 @@ maxFetchers = 5
 --
 -- Only packages with known hashes are truly “locked”.
 data Resolved a = Resolved
-  { sha1sum :: Text
+  { hashSum :: Text
   , resolved :: a
   } deriving (Show, Eq, Functor)
 
@@ -53,12 +53,12 @@ resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup 
       YLT.FileRemote{..} -> pure $ r fileSha1
       YLT.GitRemote{..}  -> r <$> fetchFromGit gitRepoUrl gitRev
       where
-        r sha = Resolved { sha1sum = sha, resolved = pkg }
+        r sha = Resolved { hashSum = sha, resolved = pkg }
 
     fetchFromGit :: Text -> Text -> E.EitherT Text IO Text
     fetchFromGit repo rev = do
       res <- liftIO $ Process.readProcessWithExitCode "nix-prefetch-git"
-               ["--url", toS repo, "--rev", toS rev, "--hash", "sha1"] ""
+               ["--url", toS repo, "--rev", toS rev, "--hash", "sha256"] ""
       case res of
         ((ExitFailure _), _, err) -> E.left $ toS err
         (ExitSuccess, out, _) -> E.hoistEither
@@ -66,4 +66,4 @@ resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup 
                     <> toS decErr <> "\nThe output was:\n" <> toS out)
             $ do val <- Aeson.eitherDecode' (toS out)
                  AesonT.parseEither
-                   (Aeson.withObject "PrefetchOutput" (Aeson..: "sha1")) val
+                   (Aeson.withObject "PrefetchOutput" (Aeson..: "sha256")) val

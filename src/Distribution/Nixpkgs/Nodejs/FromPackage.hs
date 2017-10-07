@@ -7,7 +7,7 @@ import qualified Data.HashMap.Lazy as HML
 import Nix.Expr
 import Nix.Expr.Additions
 
-import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToIdentifier)
+import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToSymbol)
 import qualified Distribution.Nodejs.Package as NP
 import qualified Yarn.Lock.Types as YLT
 
@@ -36,7 +36,7 @@ genTemplate NP.Package{..} =
         ])
   where
     depPkgKeys = depsToPkgKeys dependencies
-    pkgDep depsSym pk = mkSym depsSym !!. packageKeyToIdentifier pk
+    pkgDep depsSym pk = mkSym depsSym !!. packageKeyToSymbol pk
     nodeDepsSym = "allDeps"
     nameStr = mkStrQ [StrQ name, "-", AntiQ "version"]
     may k v = [k $= mkStr (fromMaybe mempty v)]

@@ -13,7 +13,7 @@ ghc-options:
 
 dependencies:
   - base == 4.*
-  - yarn-lock == 0.3.*
+  - yarn-lock == 0.4.*
   - aeson >= 1.0
   - async-pool == 0.9.*
   - bytestring

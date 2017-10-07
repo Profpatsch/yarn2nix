@@ -30,6 +30,7 @@ import qualified Data.Text as T
 import Data.Fix (Fix(Fix))
 import qualified Data.MultiKeyedMap as MKM
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
 
 import Nix.Expr (NExpr, ($=), (==>), (!.), (@@))
 import Nix.Expr.Additions (($$=), (!!.))
@@ -39,6 +40,7 @@ import qualified Nix.Expr.Additions as NA
 import qualified Yarn.Lock.Types as YLT
 
 import qualified Distribution.Nixpkgs.Nodejs.ResolveLockfile as Res
+import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToSymbol)
 
 -- | Nix symbol.
 newtype NSym = NSym { unNSym :: Text }
@@ -92,7 +94,7 @@ data PkgData a = PkgData
   { pkgDataName :: Text           -- ^ package name
   , pkgDataVersion :: Text        -- ^ package version
   , pkgDataUpstream :: a          -- ^ points to upstream
-  , pkgDataSha1sum :: Text        -- ^ the sha1sum of the package
+  , pkgDataHashSum :: Text        -- ^ the hash sum of the package
   , pkgDataDependencies :: [Text] -- ^ list of dependencies (as resolved nix symbols)
   }
 
@@ -104,7 +106,7 @@ registries =
         $ \n v -> [T yarnP, V n, T "/-/", V n, T "-", V v, T ".tgz"] )
   ]
   where
-    yarnP = "https://registry.yarnpkg.com"
+    yarnP = "https://registry.yarnpkg.com/"
 
 shortcuts :: M.Map [NSym] NSym
 shortcuts = M.fromList
@@ -116,10 +118,8 @@ shortcuts = M.fromList
 
 -- | Find out which registry the given 'YLT.Remote' shortens to.
 recognizeRegistry :: Text -> Maybe Registry
-recognizeRegistry fileUrl =
-  snd <$> filterRegistry fileUrl
+recognizeRegistry fileUrl = snd <$> filterRegistry fileUrl
   where
-    idRegistry url = Registry "idRegistry" (\_ _ -> [ T url ])
     -- | Get registry by the prefix of the registry’s URL.
     filterRegistry url = find (\reg -> fst reg `T.isPrefixOf` url) registries
 
@@ -128,21 +128,25 @@ recognizeRegistry fileUrl =
 convertLockfile :: Res.ResolvedLockfile -> M.Map Text PkgRef
 convertLockfile = M.fromList . foldMap convert . MKM.toList
   where
-    packageKeyToSymbol YLT.PackageKey{..} = name <> "@" <> npmVersionSpec
+    -- | remove symbols not allowed in nix derivation names
+    sanitizePackageName :: Text -> Text
+    sanitizePackageName n = foldr (\x t -> T.replace x "-" t) n ["@", "/"]
     -- | For the list of package keys we generate a 'PkgRef' each
     -- and then one actual 'PkgDef'.
-    convert :: ([YLT.PackageKey], (Res.Resolved YLT.Package)) -> [(Text, PkgRef)]
-    convert (keys, Res.Resolved{ sha1sum, resolved=pkg }) = let
-      -- | Combine the key names in a hopefully stable way
-      -- to get a nice(?) def symbol.
-      defName = packageKeyToSymbol $ YLT.PackageKey
-        { YLT.name = fold $ List.sort $ List.nub $ map YLT.name keys
+    convert :: (NE.NonEmpty YLT.PackageKey, (Res.Resolved YLT.Package))
+            -> [(Text, PkgRef)]
+    convert (keys, Res.Resolved{ hashSum, resolved=pkg }) = let
+      -- | Since there might be more than one key name, we choose
+      -- the one with most entries.
+      defName = NE.head $ maximumBy (comparing length) $ NE.group $ NE.sort $ fmap YLT.name keys
+      defSym = packageKeyToSymbol $ YLT.PackageKey
+        { YLT.name = defName
         , YLT.npmVersionSpec = YLT.version pkg }
       pkgDataGeneric upstream = PkgData
-        { pkgDataName = defName
+        { pkgDataName = sanitizePackageName defName
         , pkgDataVersion = YLT.version pkg
         , pkgDataUpstream = upstream
-        , pkgDataSha1sum = sha1sum
+        , pkgDataHashSum = hashSum
         , pkgDataDependencies = map packageKeyToSymbol
             -- TODO: handle optional dependencies better
             $ YLT.dependencies pkg <> YLT.optionalDependencies pkg
@@ -154,9 +158,9 @@ convertLockfile = M.fromList . foldMap convert . MKM.toList
           PkgDefGit $ pkgDataGeneric $ Git gitRepoUrl gitRev
                  -- we don’t need another ref indirection
                  -- if that’s already the name of our def
-      refNames = List.delete defName $ List.nub
-        $ map packageKeyToSymbol keys
-      in (defName, def) : map (\rn -> (rn, PkgRef defName)) refNames
+      refNames = List.delete defSym $ toList $ NE.nub
+        $ fmap packageKeyToSymbol keys
+      in (defSym, def) : map (\rn -> (rn, PkgRef defSym)) refNames
 
 
 {- $file-structure
@@ -224,7 +228,7 @@ mkPackageSet packages =
     -- | Build function boilerplate the build functions share in common.
     buildPkgFnGeneric :: [Text] -> NExpr -> NExpr
     buildPkgFnGeneric additionalArguments srcNExpr =
-      NA.multiParam (["name", "version", "sha1"] <> additionalArguments <> ["deps"])
+      NA.multiParam (["name", "version"] <> additionalArguments <> ["deps"])
         $ N.mkSym "buildNodePackage" @@ N.mkNonRecSet
           [ N.inherit $ map N.StaticKey ["name", "version"]
           , "src" $= srcNExpr
@@ -232,37 +236,37 @@ mkPackageSet packages =
     -- | Building a 'YLT.FileRemote' package.
     buildPkgFn :: NExpr
     buildPkgFn =
-      buildPkgFnGeneric ["registry"]
+      buildPkgFnGeneric ["registry", "sha1"]
         ("fetchurl" @@ N.mkNonRecSet
           [ "url" $= ("registry" @@ "name" @@ "version")
           , N.inherit $ [N.StaticKey "sha1"] ])
     -- | Building a 'YLT.GitRemote' package.
     buildPkgGitFn :: NExpr
     buildPkgGitFn =
-      buildPkgFnGeneric ["url", "rev"]
+      buildPkgFnGeneric ["url", "rev", "sha256"]
         ("fetchgit" @@ N.mkNonRecSet
-          [ N.inherit $ map N.StaticKey ["url", "rev", "sha1"] ])
+          [ N.inherit $ map N.StaticKey ["url", "rev", "sha256"] ])
 
     mkDefGeneric :: PkgData a -> NSym -> [NExpr] -> NExpr
     mkDefGeneric PkgData{..} buildFnSym additionalArguments =
       foldl' (@@) (shorten [buildFnSym])
         $ [  N.mkStr pkgDataName
-          ,  N.mkStr pkgDataVersion
-          ,  N.mkStr pkgDataSha1sum ]
+          ,  N.mkStr pkgDataVersion ]
           <> additionalArguments <>
           [ N.mkList $ map (N.mkSym selfSym !!.) pkgDataDependencies ]
 
     mkPkg :: (Text, PkgRef) -> N.Binding NExpr
     mkPkg (key, pkgRef) = key $$= case pkgRef of
       PkgRef t -> N.mkSym selfSym !!. t
-      PkgDefFile pd@PkgData{pkgDataUpstream} ->
+      PkgDefFile pd@PkgData{pkgDataUpstream, pkgDataHashSum} ->
         mkDefGeneric pd "nodeFilePackage"
           [ either (\url -> shorten ["identityRegistry"] @@ N.mkStr url )
                    (\reg -> shorten ["registries", registrySym reg])
-                   pkgDataUpstream ]
-      PkgDefGit pd@PkgData{pkgDataUpstream = Git{..}} ->
+                   pkgDataUpstream
+          , N.mkStr pkgDataHashSum ]
+      PkgDefGit pd@PkgData{pkgDataUpstream = Git{..}, pkgDataHashSum} ->
         mkDefGeneric pd "nodeGitPackage"
-          [ N.mkStr gitUrl, N.mkStr gitRev ]
+          [ N.mkStr gitUrl, N.mkStr gitRev, N.mkStr pkgDataHashSum ]
 
     selfSym :: Text
     selfSym = "s"
