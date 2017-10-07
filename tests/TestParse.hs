@@ -3,6 +3,7 @@ module TestParse (tests) where
 
 import Protolude
 import qualified Data.Map as Map
+import qualified Data.List.NonEmpty as NE
 import Test.Tasty (TestTree)
 import Test.Tasty.TH
 import Test.Tasty.HUnit
@@ -99,7 +100,8 @@ case_PackageKey = do
   let key = "foo@^1.3.4, bar@blafoo234, xnu@, @types/foo@@:\n"
   parseSuccess packageKeys key
     >>= \keys -> do
-      keys @?= [ PackageKey "foo" "^1.3.4"
+      keys @?= NE.fromList
+               [ PackageKey "foo" "^1.3.4"
                , PackageKey "bar" "blafoo234"
                -- yes, the version can be empty …
                , PackageKey "xnu" ""

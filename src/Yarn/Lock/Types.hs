@@ -9,6 +9,7 @@ module Yarn.Lock.Types where
 
 import Protolude hiding (try)
 import qualified Data.MultiKeyedMap as MKM
+import qualified Data.List.NonEmpty as NE
 
 -- | Yarn lockfile.
 --
@@ -33,7 +34,7 @@ data PackageKey = PackageKey
   } deriving (Show, Eq, Ord)
 
 -- | Something with a list of 'PackageKey's pointing to it.
-data Keyed a = Keyed [PackageKey] a
+data Keyed a = Keyed (NE.NonEmpty PackageKey) a
   deriving (Show, Eq, Ord, Functor)
 
 -- | The actual npm package with dependencies and a way to download.

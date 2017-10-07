@@ -27,9 +27,11 @@ module Data.MultiKeyedMap
 
 import qualified Data.Map.Strict as M
 import Data.Monoid (All(..))
-import qualified Data.List as L
+import Data.Semigroup ((<>))
+import Data.Foldable (foldl')
+import qualified Data.List.NonEmpty as NE
 import Data.Proxy (Proxy(..))
-import qualified Data.Tuple as T
+import qualified Data.Tuple as Tuple
 import qualified Text.Show as Show
 
 -- TODO: add time behaviour of functions to docstrings
@@ -107,18 +109,22 @@ instance (Show k, Show v) => Show (MKMap k v) where
 -- | Build a map from a list of key\/value pairs.
 fromList :: forall ik k v. (Ord k, Ord ik, Enum ik, Bounded ik)
          => (Proxy ik) -- ^ type of intermediate key
-         -> [([k], v)] -- ^ list of @(key, value)@
+         -> [(NE.NonEmpty k, v)] -- ^ list of @(key, value)@
          -> MKMap k v  -- ^ new map
 
 -- TODO: it’s probably better to implement with M.fromList
-fromList p = L.foldl' (\m (ks, v) -> newVal ks v m) (mkMKMap p)
+fromList p = foldl' (\m (ks, v) -> newVal ks v m) (mkMKMap p)
 
 -- | Convert the map to a list of key\/value pairs.
-toList :: MKMap k v -> [([k], v)]
+toList :: MKMap k v -> [(NE.NonEmpty k, v)]
 toList MKMap{keyMap, valMap} =
-  map (fmap (valMap M.!) . T.swap) . M.assocs . aggregateIk $ keyMap
-    where aggregateIk = M.foldlWithKey
-            (\m k ik -> M.insertWith (++) ik [k] m) mempty
+  map (fmap (valMap M.!) . Tuple.swap) . M.assocs . aggregateIk $ keyMap
+    where
+      aggregateIk :: forall k ik. (Ord ik, Enum ik)
+                  => M.Map k ik
+                  -> M.Map ik (NE.NonEmpty k)
+      aggregateIk = M.foldlWithKey
+            (\m k ik -> M.insertWith (<>) ik (pure k) m) mempty
 
 -- | “Unlink” keys that are pointing to the same value.
 --
@@ -146,7 +152,7 @@ insert :: (Ord k) => k -> v -> MKMap k v -> MKMap k v
 insert k v m@MKMap{keyMap, highestIk, valMap} =
   maybe ins upd $ M.lookup k keyMap
   where
-    ins = newVal [k] v m
+    ins = newVal (pure k) v m
     upd ik = MKMap { keyMap, highestIk, valMap = M.insert ik v valMap }
 
 
@@ -156,10 +162,9 @@ insert k v m@MKMap{keyMap, highestIk, valMap} =
 -- Insert every key into the keyMap, increase the intermediate counter,
 -- insert the value at new intermediate counter.
 -- Overwrites all already existing keys!
-newVal :: (Ord k) => [k] -> v -> MKMap k v -> MKMap k v
-newVal [] _ m = m
+newVal :: (Ord k) => NE.NonEmpty k -> v -> MKMap k v -> MKMap k v
 newVal ks v MKMap{keyMap, highestIk, valMap} =
-  MKMap { keyMap = L.foldl' (\m k -> M.insert k next m) keyMap ks
+  MKMap { keyMap = foldl' (\m k -> M.insert k next m) keyMap ks
         , highestIk = next
         , valMap = M.insert next v valMap }
   where next = succ highestIk

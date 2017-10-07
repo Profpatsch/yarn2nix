@@ -22,6 +22,7 @@ module Yarn.Lock.Parse
 
 import Protolude hiding (try)
 import qualified Data.Char as Ch
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Map.Strict as M
 import Control.Monad (fail)
@@ -87,11 +88,11 @@ packageEntry = label "package entry" $ do
 -- @
 -- align-text@^0.1.1, align-text@^0.1.3:\\n
 -- @
-packageKeys :: Parser [YLT.PackageKey]
+packageKeys :: Parser (NE.NonEmpty YLT.PackageKey)
 packageKeys = label "package keys" $ do
   firstEls <- many (try $ lexeme $ packageKey ":," <* char ',')
   lastEl   <-                      packageKey ":"  <* char ':'
-  pure $ firstEls ++ [lastEl]
+  pure $ NE.fromList $ firstEls <> [lastEl]
 
 -- | A packageKey is @\<package-name\>\@\<semver\>@;
 --
