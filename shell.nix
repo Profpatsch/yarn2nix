@@ -28,6 +28,10 @@ with import <nixpkgs> {};
             ansi-wl-pprint
             regex-tdfa
             regex-tdfa-text
+            neat-interpolation
+            tasty-th
+            tasty-quickcheck
+            tasty-hunit
           ];
           in super.mkDerivation {
             pname = "pkg-env";

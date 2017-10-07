@@ -1,4 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude, DeriveGeneric, OverloadedStrings, RecordWildCards #-}
+{-|
+Description: Parse and make sense of npm’s @package.json@ project files
+
+They are documented on https://docs.npmjs.com/files/package.json and have a few gotchas. Luckily plain JSON, but the interpretation of certain fields is non-trivial (since they contain a lot of “sugar”).
+-}
 module Distribution.Nodejs.Package
 ( Package(..)
 , Bin(..), Man(..), Dependencies
@@ -32,10 +37,21 @@ data Package = Package
   , devDependencies :: Dependencies
   } deriving (Show, Eq)
 
--- | bin files from name to file
-data Bin = BinFiles (HML.HashMap Text FilePath) | BinFolder FilePath deriving (Show, Eq)
--- | man files from name to file
-data Man = ManFiles (HML.HashMap Text FilePath) deriving (Show, Eq)
+-- | The package’s executable files.
+data Bin
+  = BinFiles (HML.HashMap Text FilePath)
+  -- ^ map of files from name to their file path (relative to package path)
+  | BinFolder FilePath
+  -- ^ a folder containing all executable files of the project (also relative)
+  deriving (Show, Eq)
+
+-- | The package’s manual files.
+data Man
+  = ManFiles (HML.HashMap Text FilePath)
+  -- ^ map of files from name to their file path (relative to package path)
+  deriving (Show, Eq)
+
+-- | Dependencies of a package.
 type Dependencies = HML.HashMap Text Text
 
 instance A.FromJSON Package where
@@ -52,32 +68,44 @@ instance A.FromJSON Package where
     dependencies    <- v .:? "dependencies" .!= mempty
     devDependencies <- v .:? "devDependencies" .!= mempty
     pure Package{..}
-    -- TODO: the bin and man parsers are way too lenient
-    -- they should fail if the types are wrong
-    where parseBin name v = do
-            let getBin f = BinFiles . f <$> v .: "bin"
-            bin <- optional (getBin (HML.singleton name)
-                         <|> getBin identity)
-            dirBin <- optional (BinFolder <$> (do dirs <- v .: "directories"
-                                                  dirs .: "bin"))
-            case (bin, dirBin) of
-              (Just _, Just _) -> fail
-                "`bin` and `directories.bin` must not exist at the same time"
-              (Just files, _) -> pure files
-              (_, Just dirs)  -> pure dirs
-              (Nothing, Nothing) -> pure . BinFiles $ mempty
-          parseMan name v = do
-            let getMan f = ManFiles . f <$> v .: "man"
-                extractName :: FilePath -> (Text, FilePath)
-                extractName file =
-                  let f = T.pack $ FP.takeFileName file
-                  in if name `T.isPrefixOf` f
-                     then (name, file)
-                     else (name <> "-" <> f, file)
-            -- TODO: handle directories.man
-            (getMan (HML.fromList . map extractName)
-               <|> getMan (HML.fromList . (:[]) . extractName)
-               <|> pure (ManFiles mempty))
+    where
+
+      parseBin packageName v = do
+        -- check for existence of these fields
+        binVal <- optional $ v .: "bin"
+        dirBinVal <- optional $ v .: "directories" >>= (.: "bin")
+        -- now check for all possible cases of the fields
+        -- see npm documentation for more
+        case (binVal, dirBinVal) of
+          (Just _              , Just _) -> fail
+            $ "`bin` and `directories.bin` must not exist at the same time"
+          -- either "bin" is a direct path, then it’s linked to the package name
+          (Just (A.String path),      _) -> pure $ BinFiles
+            $ HML.singleton packageName (toS path)
+          -- or it’s a map from names to paths
+          (Just (A.Object bins),      _) -> BinFiles
+            <$> traverse (A.withText "BinPath" (pure.toS)) bins
+          (Just _              ,      _) -> fail
+            $ "`bin` must be a path or a map of names to paths"
+          (_                   , Just (A.String path)) -> pure $ BinFolder $ toS path
+          (_                   , Just _) -> fail
+            $ "`directories.bin` must be a path"
+          -- if no executables are given, return an empty set
+          (Nothing             , Nothing) -> pure . BinFiles $ mempty
+
+      -- TODO: parsing should be as thorough as with "bin"
+      parseMan name v = do
+        let getMan f = ManFiles . f <$> v .: "man"
+            extractName :: FilePath -> (Text, FilePath)
+            extractName file =
+              let f = T.pack $ FP.takeFileName file
+              in if name `T.isPrefixOf` f
+                  then (name, file)
+                  else (name <> "-" <> f, file)
+        -- TODO: handle directories.man
+        (getMan (HML.fromList . map extractName)
+            <|> getMan (HML.fromList . (:[]) . extractName)
+            <|> pure (ManFiles mempty))
 
 -- | convenience
 decode :: BL.ByteString -> Either Text Package
