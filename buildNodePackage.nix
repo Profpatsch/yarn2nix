@@ -1,4 +1,4 @@
-{ stdenv, jq, linkNodeDeps }:
+{ stdenv, linkNodeDeps }:
 { name # String
 , version # String
 , src # Drv
@@ -28,14 +28,17 @@ stdenv.mkDerivation ({
     runHook preInstall
     mkdir $out
 
-    # TODO: create .bin folder (how are they built?)
-    #${jq}/bin/jq -r '.bin | to_entries[] | "\(.key) \(.value)"' ./package.json
-
     # a npm package is just the tarball extracted to $out
     cp -r . $out
 
+    echo "HELLO IM HERE"
     # then a node_modules folder is created for all its dependencies
-    ln -sT "${linkNodeDeps name nodeBuildInputs}" $out/node_modules
+    ${if nodeBuildInputs != []
+      then ''
+        ln -sT "${linkNodeDeps name nodeBuildInputs}" $out/node_modules
+      '' else ''
+        echo NO DEPENDENCIES AT ALL!!!
+      ''}
 
     runHook postInstall
   '';
