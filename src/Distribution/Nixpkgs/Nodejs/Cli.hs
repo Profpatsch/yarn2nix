@@ -47,7 +47,7 @@ cli = \case
       [] -> Dir.getCurrentDirectory >>= \d ->
           Dir.findFile [d] (toS $ fileFor mode) >>= \case
             Nothing -> do
-              dieWithUsage $ "no " <> fileFor mode <> " found in current directory"
+              dieWithUsage $ "No " <> fileFor mode <> " found in current directory"
             Just path  -> parseFile mode path
       [path] -> parseFile mode (toS path)
       _ -> dieWithUsage ""
@@ -59,18 +59,18 @@ cli = \case
       let pathT = toS path
       fc <- readFile path
         `catch` \e
-          -> do dieWithUsage ("unable to open " <> pathT <> ":\n" <> show (e :: IOException))
+          -> do dieWithUsage ("Unable to open " <> pathT <> ":\n" <> show (e :: IOException))
                 pure ""
       case YL.parse path fc of
         Right yarnfile  -> toStdout yarnfile
-        Left err -> die' ("could not parse " <> pathT <> ":\n" <> show err)
+        Left err -> die' ("Could not parse " <> pathT <> ":\n" <> show err)
     parseNode :: FilePath -> IO ()
     parseNode path = do
       NP.decode <$> BL.readFile path >>= \case
         Right (NP.LoggingPackage (nodeModule, warnings)) -> do
           for_ warnings $ TIO.hPutStrLn stderr . NP.formatWarning
           print $ NixP.prettyNix $ NodeFP.genTemplate nodeModule
-        Left err -> die' ("could not parse " <> toS path <> ":\n" <> show err)
+        Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)
 
 die' :: Text -> IO a
 die' err = putText err *> exitFailure

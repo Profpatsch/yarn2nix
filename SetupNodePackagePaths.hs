@@ -48,9 +48,9 @@ realMain :: Args -> IO ()
 realMain Args{..} = do
   let packageJsonPath = argPackageDir FP.</> "package.json"
   unlessM (Dir.doesDirectoryExist argTargetDir)
-    $ die $ argTargetDir <> " is not a directory"
+    $ die $ argTargetDir <> " is not a directory."
   unlessM (Dir.doesFileExist packageJsonPath)
-    $ die $ packageJsonPath <> " does not exist"
+    $ die $ packageJsonPath <> " does not exist."
 
   runExceptT
     (tryRead packageJsonPath >>= tryDecode packageJsonPath >>= go)
@@ -112,5 +112,5 @@ realMain Args{..} = do
           , " lies outside of the package folder!\n"
           , "That’s a security risk, aborting." ]
       tryIOMsg
-        (\e -> "symlink could not be created: " <> e)
+        (\e -> "Symlink could not be created: " <> e)
         (PosixFiles.createSymbolicLink binPath $ targetDir FP.</> toS name)
