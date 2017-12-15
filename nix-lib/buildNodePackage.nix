@@ -1,4 +1,4 @@
-{ stdenv, linkNodeDeps }:
+{ stdenv, linkNodeDeps, nodejs }:
 { name # String
 , version # String
 , src # Drv
@@ -13,9 +13,11 @@ assert (args ? preConfigure || args ? postConfigure) -> args ? configurePhase;
 
 with stdenv.lib;
 
-stdenv.mkDerivation ({
+stdenv.mkDerivation ((removeAttrs args [ "nodeBuildInputs" ]) // {
   name = "${name}-${version}";
   inherit version src;
+
+  buildInputs = [ nodejs ];
 
   configurePhase = args.configurePhase or "true";
   # skip the build phase except when given as attribute
@@ -31,19 +33,16 @@ stdenv.mkDerivation ({
     # a npm package is just the tarball extracted to $out
     cp -r . $out
 
-    echo "HELLO IM HERE"
     # then a node_modules folder is created for all its dependencies
     ${if nodeBuildInputs != []
       then ''
+        rm -rf $out/node_modules
         ln -sT "${linkNodeDeps name nodeBuildInputs}" $out/node_modules
-      '' else ''
-        echo NO DEPENDENCIES AT ALL!!!
-      ''}
+      '' else ""}
 
     runHook postInstall
   '';
 
   dontStrip = true; # stolen from npm2nix
 
-}
-  // (removeAttrs args [ "nodeBuildInputs" ]))
+})
