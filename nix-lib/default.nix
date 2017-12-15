@@ -62,12 +62,12 @@ let
   # Filter out files/directories with one of the given prefix names
   # from the given path.
   # type: ListOf File -> Path -> Drv
-  removePrefixes = prfxs: path: builtins.filterSource
-    (path: _: lib.any (pathF: lib.hasPrefix
-                            ((builtins.toPath path) + "/" + pathF)
-                            path)
-                  prfxs)
-    path;
+  removePrefixes = prfxs: path:
+    let
+      hasPrefix = file: prfx: lib.hasPrefix ((builtins.toPath path) + "/" + prfx) file;
+      hasAnyPrefix = file: lib.any (hasPrefix file) prfxs;
+    in
+      builtins.filterSource (file: _: ! (hasAnyPrefix file)) path;
 
 in {
   inherit buildNodeDeps callTemplate;
