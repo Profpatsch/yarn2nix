@@ -32,8 +32,9 @@ case_binPaths = do
     >>= assertEqual "bin multiple" (NP.BinFiles $ HML.fromList
                            [ ("one", "./bin/one")
                            , ("two", "imhere") ])
-  parseFailure bin (baseAnd [ ("bin", "foo")
-                            , ("directories", A.object [("bin", "foo")]) ])
+  -- TODO: succeeds with warning; test whether the correct warnings are generated
+  -- parseFailure bin (baseAnd [ ("bin", "foo")
+  --                           , ("directories", A.object [("bin", "foo")]) ])
   parseSuccess bin (baseAnd [])
     >>= assertEqual "no bins" (NP.BinFiles mempty)
   where
