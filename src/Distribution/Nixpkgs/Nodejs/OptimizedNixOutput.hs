@@ -107,7 +107,8 @@ registries =
 
 shortcuts :: M.Map [NSym] NSym
 shortcuts = M.fromList
-  [ (["registries", "yarn"], "y")
+  [ (["self"], "s")
+  , (["registries", "yarn"], "y")
   , (["nodeFilePackage"], "f")
   , (["nodeGitPackage"], "g")
   , (["identityRegistry"], "ir")
@@ -159,35 +160,42 @@ convertLockfile = M.fromList . foldMap convert . MKM.toList
 
 {- $file-structure
 @@
-{ buildNodePackage, fetchgit, fetchurl, fix }:
+{ fetchgit, fetchurl }:
+# self & super: see notes on fix
+self: super:
 let
-  # shorten common string prefixes, e.g. of known package repos
-  prefixes = {
+  # shorten the name of known package registries
+  registries = {
     yarn = n: v: "https://registry.yarnpkg.com/${n}/-/${n}-${v}.tgz";
   };
 
   sanitizePackageName = builtins.replaceStrings ["@" "/"] ["-" "-"];
 
   # We want each package definition to be one line, by putting
-  # the boilerplate into this function
-  buildPkg = …
+  # the boilerplate into these functions for different remotes.
+  nodeFilePackage = …
+  nodeGitPackage = …
+
+  # an identity function for e.g. git repos or unknown registries
+  identityRegistry = url: _: _: url;
 
   # shortcut section
-  b = buildPkg;
-  y = prefixes.yarnpkg;
+  s = self;
+  ir = identityRegistry;
+  f = nodeFilePackage;
+  g = nodeGitPackage;
+  y = registries.yarnpkg;
   …
 
-  # the actual package definitions; see NOTE fix
-  pkgs = s: {
-    "accepts@~1.3.3" = s."accepts@1.3.3";
-    "accepts@1.3.3" = b "accepts" "1.3.3" y "sha" [];
-    "babel-core@^6.14.0" = s."babel-core@6.24.1";
-    "babel-core@6.24.1" = b "babel-core" "6.24.1" y "a0e457c58ebdbae575c9f8cd75127e93756435d8" [
-      s."accepts@~1.3.3"
-    ];
-  };
-
-in fix pkgs
+# the actual package definitions
+in {
+  "accepts@~1.3.3" = s."accepts@1.3.3";
+  "accepts@1.3.3" = f "accepts" "1.3.3" y "sha" [];
+  "babel-core@^6.14.0" = s."babel-core@6.24.1";
+  "babel-core@6.24.1" = f "babel-core" "6.24.1" y "a0e457c58ebdbae575c9f8cd75127e93756435d8" [
+    s."accepts@~1.3.3"
+  ];
+}
 @@
 -}
 
@@ -195,20 +203,19 @@ in fix pkgs
 -- to a nix expression.
 mkPackageSet :: M.Map Text PkgRef -> NExpr
 mkPackageSet packages =
-  NA.simpleParamSet ["fix", "fetchurl", "fetchgit", "buildNodePackage"]
+  NA.simpleParamSet ["fetchurl", "fetchgit"]
+    -- enable self-referencing of packages
+    -- with string names with a self/super fix
+    -- see note FIX
+    ==> N.Param "self" ==> N.Param "super"
     ==> N.mkLets
         (  [ "registries" $= N.mkNonRecSet (fmap (mkRegistry . snd) registries)
            , "sanitizePackageName" $= sanitizePackageName
            , "nodeFilePackage" $= buildPkgFn
            , "nodeGitPackage" $= buildPkgGitFn
            , "identityRegistry" $= NA.multiParam ["url", "_", "_"] "url" ]
-        <> fmap mkShortcut (M.toList shortcuts)
-        -- enable self-referencing of packages
-        -- with string names with a shallow fix
-        -- see note FIX
-        <> [ "pkgs" $= (N.Param selfSym ==>
-               N.mkNonRecSet (map mkPkg $ M.toAscList packages)) ] )
-        ("fix" @@ "pkgs")
+        <> fmap mkShortcut (M.toList shortcuts) )
+        (N.mkNonRecSet (map mkPkg $ M.toAscList packages))
   where
     mkRegistry (Registry{..}) = unNSym registrySym $=
       (N.Param "n" ==> N.Param "v" ==> antiquote (registryBuilder "n" "v"))
@@ -232,7 +239,7 @@ mkPackageSet packages =
     buildPkgFnGeneric :: [Text] -> NExpr -> NExpr
     buildPkgFnGeneric additionalArguments srcNExpr =
       NA.multiParam (["name", "version"] <> additionalArguments <> ["deps"])
-        $ N.mkSym "buildNodePackage" @@ N.mkNonRecSet
+        $ ("super" !!. "_buildNodePackage") @@ N.mkNonRecSet
           [ "name" $= ("sanitizePackageName" @@ "name")
           , N.inherit $ map N.StaticKey ["version"]
           , "src" $= srcNExpr
@@ -276,19 +283,27 @@ mkPackageSet packages =
     selfSym = "s"
 
 {- $note-fix
-If attributes in a rec set have string names
-it’s impossible to reference them.
+@@
+self: super:
+@@
 
-rec {
-  "foo bar" = 1;
-  bar = "foo bar" + 2; # doesn’t work
-}
+follows the fixpoint scheme first introduced
+by the @haskellPackage@ set in @nixpkgs@.
+See the @Overlays@ documentation in the @nixpkgs@
+manual for explanations of how this works.
 
-instead, a small fix can be used:
+Note: originally, this was a shallow fix like
 
+@@
 let attrs = self: {
     "foo bar" = 1;
     bar = self."foo bar" + 2;
   };
 in fix attrs
+@@
+
+which was just in place to work around referencing
+attrset attributes through string names.
+The new method is a lot more general and allows deep
+overrides of arbitrary packages in the dependency set.
 -}
