@@ -18,7 +18,7 @@ In the second invocation generate a template for your `package.json`.
 - Completely local transformation if there are no git dependencies (can be used inside nix-build, no large file check-in).
 - Extremely fast.
 - Nice code that can be easily extended, new repositories introduced, adapt to new versions of the `yarn.lock` format.
-- Comes with a nix library that uses the power of overlays to make overriding dependencies possible.
+- Comes with a [nix library][nix-lib] that uses the power of overlays to make overriding dependencies possible.
 
 Probably a few more.
 
@@ -42,7 +42,7 @@ note that [git dependencies are resolved
 correctly](https://gist.github.com/Profpatsch/9e50d25faf5a5c4269566e9b7d89199b#file-hackmd-dependencies-nix-L1291).
 
 Pushing it through the provided [library of nix
-functions](./nix-lib/default.nix), we get a complete build of HackMD
+functions][nix-lib], we get a complete build of HackMD
 dependencies, using the project template (generated with `--template`), we also
 build HackMD. Included executables will be in `node_modules/.bin` as expected and
 correctly link to their respective library paths in the nix store, for example:
@@ -53,7 +53,19 @@ Usage: ls [OPTION]... [FILE]...
 List information about the FILEs (the current directory by default).
 ```
 
+[nix-lib]: ./nix-lib/default.nix
+
 ## Building
 
-    TODO
+```
+$ nix-build
+$ result/bin/yarn2nix
+```
 
+## Development
+
+```
+$ nix-shell
+nix-shell> hpack
+nix-shell> cabal build
+```

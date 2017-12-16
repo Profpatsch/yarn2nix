@@ -47,17 +47,13 @@ let
           ln -sT ${dep.drv} "$out/${dep.name}"
           ${ # TODO: remove static building once RPATHs are fixed
              pkgs.haskell.lib.justStaticExecutables
-               setupNodePackagePaths}/bin/setup-node-package-paths \
+               pkgs.haskellPackages.yarn2nix}/bin/setup-node-package-paths \
             bin \
             --to=$out/.bin \
             --package=$out/${dep.name}
         '')
         packageDeps}
     '';
-
-  setupNodePackagePaths = (pkgs.haskellPackages.override {
-    overrides = pkgs.callPackage ./yarn-lock.nix {};
-  }).callPackage ../yarn2nix.nix {};
 
   # Filter out files/directories with one of the given prefix names
   # from the given path.
@@ -70,5 +66,5 @@ let
       builtins.filterSource (file: _: ! (hasAnyPrefix file)) path;
 
 in {
-  inherit buildNodeDeps callTemplate;
+  inherit buildNodeDeps callTemplate removePrefixes;
 }
