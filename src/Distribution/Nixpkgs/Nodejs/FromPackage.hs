@@ -1,5 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude, DeriveGeneric, OverloadedStrings, RecordWildCards #-}
-module Distribution.Nixpkgs.Nodejs.FromPackage where
+{-|
+Description: Generate nix expression for 'NP.Package'
+-}
+module Distribution.Nixpkgs.Nodejs.FromPackage
+( genTemplate
+) where
 
 import Protolude
 import qualified Data.HashMap.Lazy as HML
@@ -10,6 +15,7 @@ import Nix.Expr.Additions
 import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToSymbol)
 import qualified Distribution.Nodejs.Package as NP
 import qualified Yarn.Lock.Types as YLT
+
 
 depsToPkgKeys :: NP.Dependencies -> [YLT.PackageKey]
 depsToPkgKeys = map (\(k, v) -> YLT.PackageKey k v) . HML.toList

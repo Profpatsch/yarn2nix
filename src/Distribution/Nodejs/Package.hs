@@ -5,9 +5,12 @@ Description: Parse and make sense of npm’s @package.json@ project files
 They are documented on https://docs.npmjs.com/files/package.json and have a few gotchas. Luckily plain JSON, but the interpretation of certain fields is non-trivial (since they contain a lot of “sugar”).
 -}
 module Distribution.Nodejs.Package
-( Package(..)
+( -- * Parsing @package.json@
+  LoggingPackage(..), decode
+, Warning(..), formatWarning
+  -- * @package.json@ data
+, Package(..)
 , Bin(..), Man(..), Dependencies
-, decode, LoggingPackage(..), Warning(..), formatWarning
 ) where
 
 import Protolude
@@ -40,6 +43,7 @@ data Package = Package
   } deriving (Show, Eq)
 
 -- | 'Package' with a potential bunch of parsing warnings.
+-- Note the 'A.FromJson' instance.
 newtype LoggingPackage = LoggingPackage
   { unLoggingPackage :: (Package, [Warning]) }
 
@@ -131,10 +135,11 @@ instance A.FromJSON LoggingPackage where
             <|> getMan (HML.fromList . (:[]) . extractName)
             <|> pure (ManFiles mempty))
 
--- | convenience
+-- | Convenience decoding function.
 decode :: BL.ByteString -> Either Text LoggingPackage
 decode = first toS . A.eitherDecode
 
+-- | Convert a @package.json@ parsing warning to plain text.
 formatWarning :: Warning -> Text
 formatWarning = ("Warning: " <>) . \case
   (WrongType field def) ->

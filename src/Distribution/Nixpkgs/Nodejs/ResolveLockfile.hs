@@ -1,8 +1,13 @@
 {-# LANGUAGE OverloadedStrings, TupleSections, ScopedTypeVariables, ViewPatterns, RecordWildCards, NoImplicitPrelude, LambdaCase, NamedFieldPuns, GeneralizedNewtypeDeriving, DeriveFunctor #-}
 -- TODO: remove exts
+{-|
+Description: IO-based resolving of missing hashes
+
+Resolving a 'YLT.Lockfile' and generating all necessary data (e.g. hashes), so that it can be converted to a nix expression. Might need IO & network access to succeed.
+-}
 module Distribution.Nixpkgs.Nodejs.ResolveLockfile
-( Resolved(..), ResolvedLockfile
-, resolveLockfileStatus
+( resolveLockfileStatus
+, Resolved(..), ResolvedLockfile
 ) where
 
 import Protolude

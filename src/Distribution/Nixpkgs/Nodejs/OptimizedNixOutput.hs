@@ -13,15 +13,14 @@ Readability means a clear structure, with definitions at the top.
 Reducing the filesize means we can’t duplicate any information and keep identifiers very short. This interferes with readability, but can be amended by giving the full names in the static section and then giving them short identifiers in a second section.
 
 Nice diffing includes having line-based output (if possible one line per package/dependency), as well as keeping the order of items stable (alphabetically sorting package names and dependencies).
-
-* File Structure
-$file-structure
-
-* NOTE: fix
-$note-fix
 -}
 module Distribution.Nixpkgs.Nodejs.OptimizedNixOutput
-( convertLockfile, mkPackageSet
+( convertLockfile
+-- * File Structure
+-- $fileStructure
+, mkPackageSet
+-- * NOTE: fix
+-- $noteFix
 ) where
 
 import Protolude
@@ -56,7 +55,7 @@ data AStrVal = V NVar
              | T Text
              -- ^ normal nix string
 
--- | Build a nix string from multiple 'AStrVal's.
+-- | Build a nix string from multiple @AStrVal@s.
 antiquote :: [AStrVal] -> NExpr
 antiquote vals = Fix . N.NStr . N.DoubleQuoted
   $ flip map vals $ \case
@@ -126,8 +125,8 @@ recognizeRegistry fileUrl = snd <$> filterRegistry fileUrl
 convertLockfile :: Res.ResolvedLockfile -> M.Map Text PkgRef
 convertLockfile = M.fromList . foldMap convert . MKM.toList
   where
-    -- | For the list of package keys we generate a 'PkgRef' each
-    -- and then one actual 'PkgDef'.
+    -- | For the list of package keys we generate a @PkgRef@ each
+    -- and then one actual @PkgDef@.
     convert :: (NE.NonEmpty YLT.PackageKey, (Res.Resolved YLT.Package))
             -> [(Text, PkgRef)]
     convert (keys, Res.Resolved{ hashSum, resolved=pkg }) = let
@@ -158,8 +157,9 @@ convertLockfile = M.fromList . foldMap convert . MKM.toList
       in (defSym, def) : map (\rn -> (rn, PkgRef defSym)) refNames
 
 
-{- $file-structure
-@@
+{- $fileStructure
+
+@
 { fetchgit, fetchurl }:
 # self & super: see notes on fix
 self: super:
@@ -196,7 +196,7 @@ in {
     s."accepts@~1.3.3"
   ];
 }
-@@
+@
 -}
 
 -- | Convert a list of packages prepared with 'convertLockfile'
@@ -282,10 +282,11 @@ mkPackageSet packages =
     selfSym :: Text
     selfSym = "s"
 
-{- $note-fix
-@@
+{- $noteFix
+
+@
 self: super:
-@@
+@
 
 follows the fixpoint scheme first introduced
 by the @haskellPackage@ set in @nixpkgs@.
@@ -294,13 +295,13 @@ manual for explanations of how this works.
 
 Note: originally, this was a shallow fix like
 
-@@
+@
 let attrs = self: {
     "foo bar" = 1;
     bar = self."foo bar" + 2;
   };
 in fix attrs
-@@
+@
 
 which was just in place to work around referencing
 attrset attributes through string names.

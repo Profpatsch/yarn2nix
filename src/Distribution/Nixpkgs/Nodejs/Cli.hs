@@ -1,4 +1,7 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase, NoImplicitPrelude #-}
+{-|
+Description: command line interface
+-}
 module Distribution.Nixpkgs.Nodejs.Cli
 ( cli
 )
@@ -36,6 +39,7 @@ fileFor :: Mode -> Text
 fileFor Yarn = "yarn.lock"
 fileFor Node = "package.json"
 
+-- | Main entry point for @yarn2nix@.
 cli :: [Text] -> IO ()
 cli = \case
   ["--help"] -> putText usage

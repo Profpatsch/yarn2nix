@@ -1,5 +1,15 @@
 {-# LANGUAGE TupleSections, OverloadedStrings #-}
-module Nix.Expr.Additions where
+{-|
+Description: Additional functions that should probably be in @hnix@
+
+Nix generation helpers. No guarantee of stability (internal!).
+-}
+module Nix.Expr.Additions
+( stringKey, ($$=), dynamicKey
+, simpleParamSet, multiParam
+, (!!.)
+, StrQ(..), mkStrQ, mkStrQI
+) where
 
 import Data.Fix (Fix(..))
 import Data.Text (Text)
@@ -32,9 +42,10 @@ simpleParamSet = mkParamset . fmap (, Nothing)
 multiParam :: [Text] -> NExpr -> NExpr
 multiParam ps expr = foldr mkFunction expr $ map Param ps
 
--- TODO: switch over to $= when
+-- TODO: switch over to !. when
 -- https://github.com/jwiegley/hnix/commit/8b4c137a3b125f52bb78039a9d201492032b38e8
 -- goes upstream
+-- | Like '!.', but automatically convert plain strings to static keys.
 (!!.) :: NExpr -> Text -> NExpr
 aset !!. k = Fix
   $ NSelect aset
@@ -52,6 +63,7 @@ data StrQ = StrQ !Text | AntiQ !NExpr
 instance IsString StrQ where
   fromString = StrQ . fromString
 
+-- 
 mkStrQtmpl :: ([Antiquoted Text NExpr] -> NString NExpr) -> [StrQ] -> NExpr
 mkStrQtmpl strtr = Fix . NStr . strtr . map trans
   where trans (StrQ t) = Plain t
