@@ -4,9 +4,18 @@ github: Profpatsch/yarn2nix
 license: MIT
 license-file: LICENSE
 synopsis: Convert yarn.lock files to nix expressions
+description: Convert @yarn.lock@ files to nix expressions. See @yarn2nix@ executable. Contains a nix library to call the generated nix files in @nix-lib/@. Library functions and module names might be restructured in the future.
 author: Profpatsch
 maintainer: mail@profpatsch.de
 category: Distribution, Nix
+
+extra-source-files:
+  - LICENSE
+  - README.md
+  - yarn2nix.nix
+  - default.nix
+  - shell.nix
+  - nix-lib/*
 
 ghc-options:
   - -Wall
