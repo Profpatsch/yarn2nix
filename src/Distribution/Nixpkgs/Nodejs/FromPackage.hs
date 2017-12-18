@@ -25,13 +25,13 @@ depsToPkgKeys = map (\(k, v) -> YLT.PackageKey k v) . HML.toList
 -- and can serve as template for manual adjustments
 genTemplate :: NP.Package -> NExpr
 genTemplate NP.Package{..} =
-  simpleParamSet ["stdenv", "buildNodePackage", "filterSourcePrefixes"]
+  simpleParamSet ["stdenv", "buildNodePackage", "removePrefixes"]
   ==> Param nodeDepsSym
   -- TODO: devDeps
   ==> ("buildNodePackage" @@ mkRecSet
         [ "name" $= nameStr
         , "version" $= mkStr version
-        , "src" $= ("filterSourcePrefixes"
+        , "src" $= ("removePrefixes"
                      @@ mkList [ mkStr "node_modules" ] @@ "./.")
         , "nodeBuildInputs"  $= (letE "a" (mkSym nodeDepsSym)
                                   $ mkList (map (pkgDep "a") depPkgKeys))
