@@ -94,20 +94,26 @@ data PkgData a = PkgData
   , pkgDataDependencies :: [Text] -- ^ list of dependencies (as resolved nix symbols)
   }
 
-
+-- | Tuples of prefix string to registry
 registries :: [(Text, Registry)]
 registries =
   [ ( yarnP
     , Registry "yarn"
         $ \n v -> [T yarnP, V n, T "/-/", V n, T "-", V v, T ".tgz"] )
+  , ( npmjsP
+    , Registry "npm"
+        $ \n v -> [T npmjsP, V n, T "/-/", V n, T "-", V v, T ".tgz"] )
+
   ]
   where
     yarnP = "https://registry.yarnpkg.com/"
+    npmjsP = "https://registry.npmjs.org/"
 
 shortcuts :: M.Map [NSym] NSym
 shortcuts = M.fromList
   [ (["self"], "s")
   , (["registries", "yarn"], "y")
+  , (["registries", "npm"], "n")
   , (["nodeFilePackage"], "f")
   , (["nodeGitPackage"], "g")
   , (["identityRegistry"], "ir")
