@@ -114,11 +114,19 @@ shortcuts = M.fromList
   ]
 
 -- | Find out which registry the given 'YLT.Remote' shortens to.
-recognizeRegistry :: Text -> Maybe Registry
-recognizeRegistry fileUrl = snd <$> filterRegistry fileUrl
+recognizeRegistry :: Text -- ^ package name
+                  -> Text -- ^ url to file
+                  -> Maybe Registry
+recognizeRegistry pkgName fileUrl = snd <$> foundRegistry
   where
     -- | Get registry by the prefix of the registry’s URL.
-    filterRegistry url = find (\reg -> fst reg `T.isPrefixOf` url) registries
+    foundRegistry = find predicate registries
+    predicate :: (Text, Registry) -> Bool
+    predicate reg = fst reg `T.isPrefixOf` fileUrl
+             -- We have to check for names containing `/`, because
+             -- they are handled specially by npm registries and
+             -- the URLs differ from other packages, so we don’t shorten them.
+             && not (T.any (== '/') pkgName)
 
 
 -- | Convert a 'Res.ResolvedLockfile' to its final, nix-ready form.
@@ -147,7 +155,8 @@ convertLockfile = M.fromList . foldMap convert . MKM.toList
         }
       def = case YLT.remote pkg of
         YLT.FileRemote{fileUrl} ->
-          PkgDefFile $ pkgDataGeneric $ note fileUrl $ recognizeRegistry fileUrl
+          PkgDefFile $ pkgDataGeneric $ note fileUrl
+            $ recognizeRegistry defName fileUrl
         YLT.GitRemote{gitRepoUrl, gitRev} ->
           PkgDefGit $ pkgDataGeneric $ Git gitRepoUrl gitRev
                  -- we don’t need another ref indirection
