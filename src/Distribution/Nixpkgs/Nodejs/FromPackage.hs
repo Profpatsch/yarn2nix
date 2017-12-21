@@ -44,5 +44,5 @@ genTemplate NP.Package{..} =
     depPkgKeys = depsToPkgKeys dependencies
     pkgDep depsSym pk = mkSym depsSym !!. packageKeyToSymbol pk
     nodeDepsSym = "allDeps"
-    nameStr = mkStrQ [StrQ name, "-", AntiQ "version"]
+    nameStr = mkStrQ [StrQ name]
     may k v = [k $= mkStr (fromMaybe mempty v)]
