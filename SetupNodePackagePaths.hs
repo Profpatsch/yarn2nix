@@ -69,13 +69,13 @@ realMain Args{..} = do
     tryDecode fp fileBs = do
       (pkg, warnings) <- NP.unLoggingPackage
                       <$> ExcT.ExceptT (pure $ first exc $ NP.decode fileBs)
-      warn $ fmap NP.formatWarning warnings
+      warn $ fmap ((\w -> toS fp <> ": " <> w) . NP.formatWarning) warnings
       pure pkg
       where exc e = fp <> " cannot be decoded\n" <> toS e
 
     qte s = "\"" <> s <> "\""
     warn :: [Text] -> ErrorLogger ()
-    warn ws = for_ ws $ liftIO . TIO.hPutStrLn stderr
+    warn ws = for_ ws $ \w -> liftIO $ TIO.hPutStrLn stderr ("Warning: " <> w)
 
     go :: NP.Package -> ErrorLogger ()
     go NP.Package{bin} = case argMode of

@@ -158,13 +158,13 @@ decode = first toS . A.eitherDecode
 
 -- | Convert a @package.json@ parsing warning to plain text.
 formatWarning :: Warning -> Text
-formatWarning = ("Warning: " <>) . \case
+formatWarning = \case
   WrongType{..} ->
        "Field \""
     <> wrongTypeField
-    <> "\" has the wrong type."
+    <> "\" has the wrong type. "
     <> (case wrongTypeDefault of
          Just def -> "Defaulting to " <> def
-         Nothing  -> "Leaving it out.")
+         Nothing  -> "Leaving it out")
     <> "."
   (PlainWarning t) -> t
