@@ -37,7 +37,8 @@ stdenv.mkDerivation ((removeAttrs args [ "nodeBuildInputs" ]) // {
     ${if nodeBuildInputs != []
       then ''
         rm -rf $out/node_modules
-        ln -sT "${linkNodeDeps name nodeBuildInputs}" $out/node_modules
+        ln -sT "${linkNodeDeps
+          { inherit name version; } nodeBuildInputs}" $out/node_modules
       '' else ""}
 
     runHook postInstall

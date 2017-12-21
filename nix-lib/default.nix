@@ -38,8 +38,8 @@ let
   # Also link executables of all dependencies into `.bin`.
   # TODO: copy manpages & docs as well
   # type: String -> ListOf { name: String, drv : Drv } -> Drv
-  linkNodeDeps = name: packageDeps:
-    pkgs.runCommand (name + "-node_modules") {} ''
+  linkNodeDeps = {name, version}: packageDeps:
+    pkgs.runCommand ("${name}-${version}-node_modules") {} ''
       mkdir -p $out/.bin
       ${lib.concatMapStringsSep "\n"
         (dep: ''
