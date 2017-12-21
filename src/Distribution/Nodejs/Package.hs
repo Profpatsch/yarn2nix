@@ -50,8 +50,9 @@ newtype LoggingPackage = LoggingPackage
 -- | Possible warnings from parsing.
 data Warning
   = WrongType
-  { wrongTypeField :: Text
-  , wrongTypeDefault :: Text }
+  { wrongTypeField :: Text -- ^ the field which has a wrong type
+  , wrongTypeDefault :: Maybe Text -- ^ the default value, if used
+  }
   | PlainWarning Text
 
 -- | The package’s executable files.
@@ -71,23 +72,29 @@ data Man
 -- | Dependencies of a package.
 type Dependencies = HML.HashMap Text Text
 
+type Warn = WL.WriterT [Warning] AT.Parser
+putWarning :: a -> Warning -> Warn a
+putWarning a w = WL.writer (a, [w])
+
 -- | See https://github.com/npm/normalize-package-data for
 -- normalization steps used by npm itself.
 instance A.FromJSON LoggingPackage where
   parseJSON = A.withObject "Package" $ \v -> fmap LoggingPackage . WL.runWriterT $ do
     let
-      l :: AT.Parser a -> WL.WriterT [Warning] AT.Parser a
+      l :: AT.Parser a -> Warn a
       l = WL.WriterT . fmap (\a -> (a, []))
       tryWarn :: (AT.FromJSON a, Show a)
-              => Text -> a -> WL.WriterT [Warning] AT.Parser a
-      tryWarn field def = lift (v .:? field .!= def)
-                          <|> WL.writer (def, [WrongType field (show def)])
+              => Text -> a -> Warn a
+      tryWarn field def =
+        lift (v .:? field .!= def)
+        <|> putWarning def (WrongType { wrongTypeField = field
+                                       , wrongTypeDefault = Just (show def) })
     name            <- l $ v .:  "name"
     version         <- l $ v .:  "version"
     description     <- tryWarn "description" Nothing
     homepage        <- tryWarn "homepage" Nothing
     private         <- tryWarn "private" False
-    scripts         <- l $ v .:? "scripts" .!= mempty
+    scripts         <- (parseMapText "scripts" =<< (tryWarn "scripts" mempty))
     bin             <- parseBin name v
     man             <- l $ parseMan name v
     license         <- tryWarn "license" Nothing
@@ -96,7 +103,17 @@ instance A.FromJSON LoggingPackage where
     pure Package{..}
     where
 
-      parseBin :: Text -> AT.Object -> WL.WriterT [Warning] AT.Parser Bin
+      parseMapText :: Text -> HML.HashMap Text AT.Value
+                   -> Warn (HML.HashMap Text Text)
+      parseMapText fieldPath val =
+        HML.mapMaybe identity <$> HML.traverseWithKey tryParse val
+        where
+          tryParse :: Text -> A.Value -> Warn (Maybe Text)
+          tryParse key el = lift (Just <$> AT.parseJSON el)
+            <|> putWarning Nothing
+                  (WrongType { wrongTypeField = fieldPath <> "." <> key
+                             , wrongTypeDefault = Nothing })
+      parseBin :: Text -> AT.Object -> Warn Bin
       parseBin packageName v = do
         -- check for existence of these fields
         binVal <- lift $ optional $ v .: "bin"
@@ -105,8 +122,8 @@ instance A.FromJSON LoggingPackage where
         -- see npm documentation for more
         case (binVal, dirBinVal) of
           (Just _              , Just _) ->
-            WL.writer (BinFiles mempty, [PlainWarning
-              "`bin` and `directories.bin` must not exist at the same time."])
+            putWarning (BinFiles mempty) $ PlainWarning
+              "`bin` and `directories.bin` must not exist at the same time, skipping."
           -- either "bin" is a direct path, then it’s linked to the package name
           (Just (A.String path),      _) -> pure $ BinFiles
             $ HML.singleton packageName (toS path)
@@ -142,6 +159,12 @@ decode = first toS . A.eitherDecode
 -- | Convert a @package.json@ parsing warning to plain text.
 formatWarning :: Warning -> Text
 formatWarning = ("Warning: " <>) . \case
-  (WrongType field def) ->
-    "Field \"" <> field <> "\" has the wrong type. Defaulting to " <> def <> "."
+  WrongType{..} ->
+       "Field \""
+    <> wrongTypeField
+    <> "\" has the wrong type."
+    <> (case wrongTypeDefault of
+         Just def -> "Defaulting to " <> def
+         Nothing  -> "Leaving it out.")
+    <> "."
   (PlainWarning t) -> t
