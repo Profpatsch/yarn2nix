@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.5.0] - ???
+
+### Changed
+
+- Raise `protolude` minimal version to `0.2.*`
+
+### Fixed
+
+- Import missing quickcheck `NonEmpty` instances from `quickcheck-orphans`
+
 ## [0.4.0] - 2017-10-07
 
 ### Changed

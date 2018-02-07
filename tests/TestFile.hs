@@ -64,11 +64,6 @@ case_missingField = do
     (File.MissingField "version"
      NE.:| [File.UnknownRemoteType]) $ emptyAst []
 
--- will be in protolude soon
-infixl 4 <&>
-(<&>) :: Functor f => f a -> (a -> b) -> f b
-(<&>) = flip fmap
-
 astToPackageSuccess :: Parse.PackageFields -> IO T.Package
 astToPackageSuccess ast = case File.astToPackage ast of
   (Left errs) -> do

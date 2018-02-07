@@ -7,6 +7,7 @@ import qualified Data.List.NonEmpty as NE
 import Test.Tasty (TestTree)
 import Test.Tasty.TH
 import Test.Tasty.QuickCheck
+import Test.QuickCheck.Instances () -- orphans!
 
 import qualified Data.MultiKeyedMap as MKM
 
