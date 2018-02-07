@@ -55,12 +55,41 @@ List information about the FILEs (the current directory by default).
 
 [nix-lib]: ./nix-lib/default.nix
 
-## Building
+## Building `yarn2nix`
 
 ```
 $ nix-build
 $ result/bin/yarn2nix
 ```
+
+## Using the generated nix files to build a project
+
+**Note:** This is a temporary interface. Ideally, the library will be in nixpkgs
+and yarn2nix will be callable from inside the build (so the resulting nix files
+don’t have to be checked in).
+
+Once you have the `yarn2nix` binary, use it to generate nix files for the
+`yarn.lock` file and the `package.json`:
+
+```shell
+$ yarn2nix ./jsprotect/yarn.lock > npm-deps.nix
+$ yarn2nix --template ./jsoproject/package.json > npm-package.nix
+```
+
+Then use the library to assemble the generated files in a `default.nix`:
+
+```nix
+let
+  pkgs = import <nixpkgs> {};
+  nixLib = pkgs.callPackage /path/to/yarn2nix/nix-lib {};
+  
+in nixLib.callTemplate ./package.nix
+     (nixLib.buildNodeDeps ./package-deps.nix")
+```
+
+Finally, run `nix-build`, and voilà, in `./result/` you find the project with
+all its dependencies correctly linked to their corresponding `node_modules`
+folder, recursively.
 
 ## Development
 
