@@ -48,14 +48,14 @@ realMain :: Args -> IO ()
 realMain Args{..} = do
   let packageJsonPath = argPackageDir FP.</> "package.json"
   unlessM (Dir.doesDirectoryExist argTargetDir)
-    $ die $ argTargetDir <> " is not a directory."
+    $ die $ toS $ argTargetDir <> " is not a directory."
   unlessM (Dir.doesFileExist packageJsonPath)
-    $ die $ packageJsonPath <> " does not exist."
+    $ die $ toS $ packageJsonPath <> " does not exist."
 
   runExceptT
     (tryRead packageJsonPath >>= tryDecode packageJsonPath >>= go)
     >>= \case
-      (Left err) -> die $ "ERROR: " <> err
+      (Left err) -> die $ toS $ "ERROR: " <> err
       (Right _) -> pass
 
   where
