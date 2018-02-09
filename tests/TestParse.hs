@@ -56,8 +56,8 @@ case_NonsenseASTPackageEntry = do
       assertBool "field2 member" (Map.member "field2" fields)
       Map.lookup "field1" fields @=? (Just (Left "°§ℓ»«UAIERNT"))
 
-nestedPackage :: Text
-nestedPackage = [text|
+nestedPackageExample :: Text
+nestedPackageExample = [text|
   readable-stream@1.0, "readable-stream@>=1.0.33-1 <1.1.0-0":
     dependencies:
       core-util-is "~1.0.0"
@@ -81,8 +81,8 @@ case_nestedField = do
 
 case_NestedPackage :: Assertion
 case_NestedPackage = do
-  assertBool "there is unicode" (all Ch.isAscii (toS nestedPackage :: [Char]))
-  parseSuccess packageEntry nestedPackage
+  assertBool "there is unicode" (all Ch.isAscii (toS nestedPackageExample :: [Char]))
+  parseSuccess packageEntry nestedPackageExample
     >>= \(Keyed _ (_, PackageFields fields)) -> do
       case Map.lookup "dependencies" fields of
         (Nothing) -> assertFailure "where’s the key"
@@ -123,6 +123,25 @@ case_PackageKey = do
                -- and yes, package names can contain `@`
                , PackageKey "@types/foo@" ""
                ]
+
+
+-- | PackageKeys can contain arbitrary stuff apparently
+complexKeyExample :: Text
+complexKeyExample = [text|
+  "mango-components@git+ssh://git@github.com:mango-chutney/mango-components.git#f617aa4":
+  |]
+
+case_complexKey :: Assertion
+case_complexKey = do
+  parseSuccess packageKeys complexKeyExample
+    >>= \((PackageKey name version) NE.:| []) -> do
+      assertEqual "complexKey name" "mango-components" name
+      assertEqual "complexKey version"
+        "git+ssh://git@github.com:mango-chutney/mango-components.git#f617aa4"
+        version
+
+
+-- HELPERS
 
 parseSuccess :: Parser a -> Text -> IO a
 parseSuccess parser string = do
