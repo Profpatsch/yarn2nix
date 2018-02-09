@@ -32,6 +32,7 @@ import Data.Foldable (foldl')
 import qualified Data.List.NonEmpty as NE
 import Data.Proxy (Proxy(..))
 import qualified Data.Tuple as Tuple
+import GHC.Stack (HasCallStack)
 import qualified Text.Show as Show
 
 -- TODO: add time behaviour of functions to docstrings
@@ -87,10 +88,10 @@ instance Traversable (MKMap k) where
   {-# INLINE traverse #-}
 
 -- | Find value at key. Partial. See 'M.!'.
-at :: (Ord k) => MKMap k v -> k -> v
+at :: (HasCallStack, Ord k) => MKMap k v -> k -> v
 at MKMap{keyMap, valMap} k =  valMap M.! (keyMap M.! k)
 -- | Operator alias of 'at'.
-(!) :: (Ord k) => MKMap k v -> k -> v
+(!) :: (HasCallStack, Ord k) => MKMap k v -> k -> v
 (!) = at
 {-# INLINABLE (!) #-}
 {-# INLINABLE at #-}

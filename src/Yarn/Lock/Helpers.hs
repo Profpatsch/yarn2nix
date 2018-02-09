@@ -15,6 +15,7 @@ module Yarn.Lock.Helpers
 
 import Protolude
 import qualified Data.List as L
+import GHC.Stack (HasCallStack)
 
 import qualified Data.MultiKeyedMap as MKM
 
@@ -26,7 +27,11 @@ import Yarn.Lock.Types
 -- Node packages often contain those and the yarn lockfile
 -- does not yet eliminate them, which may lead to infinite
 -- recursions.
-decycle :: Lockfile -> Lockfile
+--
+-- Invariant: Every dependency entry in each package in the
+-- 'Lockfile' *must* point to an existing key, otherwise
+-- the function crashes.
+decycle :: HasCallStack => Lockfile -> Lockfile
 decycle lf = goFold [] lf (MKM.keys lf)
   -- TODO: probably rewrite with State
   where
