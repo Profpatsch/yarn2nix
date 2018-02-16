@@ -79,12 +79,12 @@ $ yarn2nix --template ./jsoproject/package.json > npm-package.nix
 Then use the library to assemble the generated files in a `default.nix`:
 
 ```nix
+{ pkgs ? import <nixpkgs> {} }:
 let
-  pkgs = import <nixpkgs> {};
   nixLib = pkgs.callPackage /path/to/yarn2nix/nix-lib {};
   
-in nixLib.callTemplate ./package.nix
-     (nixLib.buildNodeDeps ./package-deps.nix")
+in nixLib.callTemplate ./npm-package.nix
+     (nixLib.buildNodeDeps ./npm-deps.nix)
 ```
 
 Finally, run `nix-build`, and voilà, in `./result/` you find the project with
