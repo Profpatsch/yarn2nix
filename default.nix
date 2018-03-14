@@ -1,4 +1,5 @@
-(import <nixpkgs> {
+{ nixpkgsPath ? <nixpkgs> }:
+(import nixpkgsPath {
   overlays = [(pkgs: oldpkgs: {
     haskellPackages =
       let nix-lib = pkgs.callPackage ./nix-lib {};

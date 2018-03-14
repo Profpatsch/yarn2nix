@@ -1,4 +1,9 @@
-{ lib, pkgs }:
+{ lib, pkgs
+# TODO: temporary, to make overwriting yarn2nix easy
+# TODO: remove static building once RPATHs are fixed
+, yarn2nix ? pkgs.haskell.lib.justStaticExecutables
+               pkgs.haskellPackages.yarn2nix
+}:
 
 let
   # Build an attrset of node dependencies suitable for the `nodeBuildInputs`
@@ -45,9 +50,7 @@ let
         (dep: ''
           echo "linking node dependency ${dep.name}"
           ln -sT ${dep.drv} "$out/${dep.name}"
-          ${ # TODO: remove static building once RPATHs are fixed
-             pkgs.haskell.lib.justStaticExecutables
-               pkgs.haskellPackages.yarn2nix}/bin/setup-node-package-paths \
+          ${yarn2nix}/bin/setup-node-package-paths \
             bin \
             --to=$out/.bin \
             --package=$out/${dep.name}

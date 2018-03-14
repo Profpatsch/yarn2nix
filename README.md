@@ -79,9 +79,15 @@ $ yarn2nix --template ./jsoproject/package.json > npm-package.nix
 Then use the library to assemble the generated files in a `default.nix`:
 
 ```nix
-{ pkgs ? import <nixpkgs> {} }:
 let
-  nixLib = pkgs.callPackage /path/to/yarn2nix/nix-lib {};
+  nixpkgsPath = <nixpkgs>;
+  pkgs = import nixpkgsPath {};
+  nixLib = pkgs.callPackage /path/to/yarn2nix/nix-lib {
+    # WARNING (TODO): for now you need to use this checked out yarn2nix
+    # because the upstream package (in haskellPackages) might have
+    # broken dependencies (yarn-lock and yarn2nix are not in stackage)
+    yarn2nix = import /path/to/yarn2nix/ { inherit nixpkgsPath; };
+  };
   
 in nixLib.callTemplate ./npm-package.nix
      (nixLib.buildNodeDeps ./npm-deps.nix)
