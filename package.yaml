@@ -22,7 +22,7 @@ dependencies:
   - text
   - megaparsec == 5.*
   - protolude == 0.2.*
-  - either == 4.*
+  - either >= 4 && < 6
 
 library:
   source-dirs: src
