@@ -13,7 +13,7 @@ module Distribution.Nodejs.Package
 , Bin(..), Man(..), Dependencies
 ) where
 
-import Protolude
+import Protolude hiding (packageName)
 import Control.Monad (fail)
 import qualified Control.Monad.Writer.Lazy as WL
 import qualified Data.ByteString.Lazy as BL

@@ -5,7 +5,7 @@ Description: Additional functions that should probably be in @hnix@
 Nix generation helpers. No guarantee of stability (internal!).
 -}
 module Nix.Expr.Additions
-( stringKey, ($$=), dynamicKey
+( stringKey, ($$=), dynamicKey, inheritStatic
 , simpleParamSet, multiParam
 , (!!.)
 , StrQ(..), mkStrQ, mkStrQI
@@ -24,7 +24,7 @@ import Text.Regex.TDFA ((=~))
 
 -- | Make a binding, but have the key be a string, not symbol.
 stringKey :: Text -> NExpr -> Binding NExpr
-stringKey k v = NamedVar [dynamicKey k] v
+stringKey k v = NamedVar (pure $ dynamicKey k) v nullPos
 -- | Infix version of 'stringKey'.
 ($$=) :: Text -> NExpr -> Binding NExpr
 ($$=) = stringKey
@@ -34,9 +34,12 @@ infixr 2 $$=
 dynamicKey :: Text -> NKeyName NExpr
 dynamicKey k = DynamicKey $ Plain $ DoubleQuoted [Plain k]
 
+inheritStatic :: [Text] -> Binding e
+inheritStatic names = inherit (map StaticKey names) nullPos
+
 -- | shortcut to create a list of closed params, like @{ foo, bar, baz }:@
 simpleParamSet :: [Text] -> Params NExpr
-simpleParamSet = mkParamset . fmap (, Nothing)
+simpleParamSet prms = mkParamset (fmap (, Nothing) prms) False
 
 -- | shortcut to create a list of multiple params, like @a: b: c:@
 multiParam :: [Text] -> NExpr -> NExpr
@@ -49,7 +52,7 @@ multiParam ps expr = foldr mkFunction expr $ map Param ps
 (!!.) :: NExpr -> Text -> NExpr
 aset !!. k = Fix
   $ NSelect aset
-      [(if isPlainSymbol k then StaticKey else dynamicKey) k] Nothing
+      (pure $ (if isPlainSymbol k then StaticKey else dynamicKey) k) Nothing
   where
     -- the nix lexer regex for IDs (symbols) is 
     -- [a-zA-Z\_][a-zA-Z0-9\_\'\-]*
@@ -73,4 +76,4 @@ mkStrQ, mkStrQI :: [StrQ] -> NExpr
 -- | Create a double-quoted string from a list of antiquotes/plain strings.
 mkStrQ = mkStrQtmpl DoubleQuoted
 -- | Create a single-quoted string from a list of antiquotes/plain strings.
-mkStrQI = mkStrQtmpl Indented
+mkStrQI = mkStrQtmpl (Indented 2)

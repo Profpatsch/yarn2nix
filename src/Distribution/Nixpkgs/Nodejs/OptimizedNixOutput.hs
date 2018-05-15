@@ -31,8 +31,8 @@ import qualified Data.MultiKeyedMap as MKM
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NE
 
-import Nix.Expr (NExpr, ($=), (==>), (!.), (@@))
-import Nix.Expr.Additions (($$=), (!!.))
+import Nix.Expr (NExpr, ($=), (==>), (@@))
+import Nix.Expr.Additions (($$=), (!!.), inheritStatic)
 import qualified Nix.Expr as N
 import qualified Nix.Expr.Additions as NA
 
@@ -237,7 +237,7 @@ mkPackageSet packages =
 
     concatNSyms :: [NSym] -> NExpr
     concatNSyms [] = panic "non-empty shortcut syms!"
-    concatNSyms (l:ls) = foldl (!.) (N.mkSym $ unNSym l) (fmap unNSym ls)
+    concatNSyms (l:ls) = foldl (!!.) (N.mkSym $ unNSym l) (fmap unNSym ls)
     mkShortcut :: ([NSym], NSym) -> N.Binding NExpr
     mkShortcut (nSyms, short) = unNSym short $= concatNSyms nSyms
     -- | Try to shorten sym, otherwise use input.
@@ -246,7 +246,7 @@ mkPackageSet packages =
 
     -- | remove symbols not allowed in nix derivation names
     sanitizePackageName :: NExpr
-    sanitizePackageName = "builtins" !. "replaceStrings"
+    sanitizePackageName = "builtins" !!. "replaceStrings"
                             @@ N.mkList [N.mkStr "@", N.mkStr "/"]
                             @@ N.mkList [N.mkStr "-", N.mkStr "-"]
 
@@ -256,7 +256,7 @@ mkPackageSet packages =
       NA.multiParam (["name", "version"] <> additionalArguments <> ["deps"])
         $ ("super" !!. "_buildNodePackage") @@ N.mkNonRecSet
           [ "name" $= ("sanitizePackageName" @@ "name")
-          , N.inherit $ map N.StaticKey ["version"]
+          , inheritStatic ["version"]
           , "src" $= srcNExpr
           , "nodeBuildInputs" $= "deps" ]
     -- | Building a 'YLT.FileRemote' package.
@@ -265,13 +265,13 @@ mkPackageSet packages =
       buildPkgFnGeneric ["registry", "sha1"]
         ("fetchurl" @@ N.mkNonRecSet
           [ "url" $= ("registry" @@ "name" @@ "version")
-          , N.inherit $ [N.StaticKey "sha1"] ])
+          , inheritStatic ["sha1"] ])
     -- | Building a 'YLT.GitRemote' package.
     buildPkgGitFn :: NExpr
     buildPkgGitFn =
       buildPkgFnGeneric ["url", "rev", "sha256"]
         ("fetchgit" @@ N.mkNonRecSet
-          [ N.inherit $ map N.StaticKey ["url", "rev", "sha256"] ])
+          [ inheritStatic ["url", "rev", "sha256"] ])
 
     mkDefGeneric :: PkgData a -> NSym -> [NExpr] -> NExpr
     mkDefGeneric PkgData{..} buildFnSym additionalArguments =
