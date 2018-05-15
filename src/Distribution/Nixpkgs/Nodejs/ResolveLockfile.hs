@@ -11,7 +11,7 @@ module Distribution.Nixpkgs.Nodejs.ResolveLockfile
 ) where
 
 import Protolude
-import qualified Control.Monad.Trans.Either as E
+import qualified Control.Monad.Trans.Except as E
 import qualified Data.List.NonEmpty as NE
 import qualified Data.MultiKeyedMap as MKM
 import qualified Data.Aeson as Aeson
@@ -42,7 +42,7 @@ resolveLockfileStatus :: (Chan YLT.Remote) -> YLT.Lockfile
                       -> IO (Either (NE.NonEmpty Text) ResolvedLockfile)
 resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup -> do
   job <- STM.atomically $ Async.mapReduce taskGroup
-           $ fmap (\(ks, pkg) -> (:[]) <$> (E.runEitherT $ do
+           $ fmap (\(ks, pkg) -> (:[]) <$> (E.runExceptT $ do
                         liftIO $ writeChan msgChan (YLT.remote pkg)
                         res <- resolve pkg
                         pure (ks, res)))
@@ -53,20 +53,20 @@ resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup 
     (_   , ys) -> pure $ Right $ MKM.fromList YLT.lockfileIkProxy ys
 
   where
-    resolve :: YLT.Package -> E.EitherT Text IO (Resolved YLT.Package)
+    resolve :: YLT.Package -> E.ExceptT Text IO (Resolved YLT.Package)
     resolve pkg = case YLT.remote pkg of
       YLT.FileRemote{..} -> pure $ r fileSha1
       YLT.GitRemote{..}  -> r <$> fetchFromGit gitRepoUrl gitRev
       where
         r sha = Resolved { hashSum = sha, resolved = pkg }
 
-    fetchFromGit :: Text -> Text -> E.EitherT Text IO Text
+    fetchFromGit :: Text -> Text -> E.ExceptT Text IO Text
     fetchFromGit repo rev = do
       res <- liftIO $ Process.readProcessWithExitCode "nix-prefetch-git"
                ["--url", toS repo, "--rev", toS rev, "--hash", "sha256"] ""
       case res of
-        ((ExitFailure _), _, err) -> E.left $ toS err
-        (ExitSuccess, out, _) -> E.hoistEither
+        ((ExitFailure _), _, err) -> E.throwE $ toS err
+        (ExitSuccess, out, _) -> E.ExceptT . pure
           $ first (\decErr -> "parsing json output failed:\n"
                     <> toS decErr <> "\nThe output was:\n" <> toS out)
             $ do val <- Aeson.eitherDecode' (toS out)
