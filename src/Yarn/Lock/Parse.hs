@@ -17,24 +17,26 @@ module Yarn.Lock.Parse
 , packageEntry
 -- * Internal Parsers
 , field, nestedField, simpleField
-, packageKeys, packageKey
+, packageKeys
 ) where
 
-import Protolude hiding (try)
+import Protolude hiding (try, some, many)
 import qualified Data.Char as Ch
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Map.Strict as M
 import Control.Monad (fail)
 
-import Text.Megaparsec as MP hiding (space)
-import Text.Megaparsec.Text
-import qualified Text.Megaparsec.Lexer as MPL
+import Text.Megaparsec as MP
+import qualified Text.Megaparsec.Char as MP
+import qualified Text.Megaparsec.Char.Lexer as MPL
 
 -- import qualified Data.MultiKeyedMap as MKM
 -- import Data.Proxy (Proxy(..))
 
 import qualified Yarn.Lock.Types as YLT
+
+type Parser = Parsec Void Text
 
 
 -- | The @yarn.lock@ format doesn’t specifically include a fixed scheme,
@@ -54,8 +56,10 @@ type Package = YLT.Keyed (SourcePos, PackageFields)
 -- | Parse a complete yarn.lock into an abstract syntax tree,
 -- keeping the source positions of each package entry.
 packageList :: Parser [Package]
-packageList = many $ (skipMany (comment <|> eol)) *> packageEntry
-                where comment = char '#' *> manyTill anyChar eol
+packageList = MP.many $ (skipMany (comment <|> MP.string "\n")) *> packageEntry
+                where
+                  comment :: Parser (Tokens Text)
+                  comment = MP.char '#' *> takeWhileP Nothing (/= '\n')
 
 -- | A single Package.
 --
@@ -90,8 +94,8 @@ packageEntry = label "package entry" $ do
 -- @
 packageKeys :: Parser (NE.NonEmpty YLT.PackageKey)
 packageKeys = label "package keys" $ do
-  firstEls <- many (try $ lexeme $ packageKey ":," <* char ',')
-  lastEl   <-                      packageKey ":"  <* char ':'
+  firstEls <- many (try $ lexeme $ packageKey ":," <* MP.char ',')
+  lastEl   <-                      packageKey ":"  <* MP.char ':'
   pure $ NE.fromList $ firstEls <> [lastEl]
 
 -- | A packageKey is @\<package-name\>\@\<semver\>@;
@@ -106,7 +110,7 @@ packageKey separators = inString (pkgKey "\"")
   where
     pkgKey :: [Char] -> Parser YLT.PackageKey
     pkgKey valueChars = label "package key" $ do
-      key <- someTextOf (noneOf valueChars)
+      key <- someTextOf (MP.noneOf valueChars)
       -- okay, here’s the rub:
       -- `@` is used for separation, but package names containing `@`
       -- are totally a thing. As first character, as well.
@@ -136,7 +140,7 @@ simpleField = (,) <$> lexeme (strSymbolChars <|> symbolChars)
                   <?> "simple field"
   where
     valueChars, strValueChars :: Parser Text
-    valueChars = someTextOf (noneOf ("\n\r\"" :: [Char]))
+    valueChars = someTextOf (MP.noneOf ("\n\r\"" :: [Char]))
     strSymbolChars = inString $ symbolChars
     strValueChars = inString $ valueChars
       -- as with packageKey semvers, this can be empty
@@ -146,7 +150,7 @@ simpleField = (,) <$> lexeme (strSymbolChars <|> symbolChars)
 -- we get another block with deeper indentation.
 nestedField :: Parser (Text, PackageFields)
 nestedField = label "nested field" $
-  indentedFieldsWithHeader (symbolChars <* char ':')
+  indentedFieldsWithHeader (symbolChars <* MP.char ':')
 
 
 -- internal parsers
@@ -172,7 +176,7 @@ indentedFieldsWithHeader header = indentBlock $ do
 -- Update: npm doesn’t specify the package name format, at all.
 -- Apart from the length.
 symbolChars :: Parser Text
-symbolChars = label "key symbol" $ someTextOf $ satisfy
+symbolChars = label "key symbol" $ someTextOf $ MP.satisfy
   (\c -> Ch.isAscii c &&
      (Ch.isLower c || Ch.isUpper c || Ch.isNumber c || c `elem` special))
   where special = "-_.@/" :: [Char]
@@ -185,7 +189,7 @@ someTextOf c = T.pack <$> some c
 
 -- | parse everything as inside a string
 inString :: Parser a -> Parser a
-inString = between (char '"') (char '"')
+inString = between (MP.char '"') (MP.char '"')
 
 -- lexers
 
@@ -193,7 +197,7 @@ inString = between (char '"') (char '"')
 space :: Parser ()
 space = MPL.space (void MP.spaceChar)
                   (MPL.skipLineComment "# ")
-                  (void $ satisfy (const False))
+                  (void $ MP.satisfy (const False))
 
 -- | Parse a lexeme.
 lexeme :: Parser a -> Parser a
@@ -202,6 +206,6 @@ lexeme = MPL.lexeme space
 -- | Ensure parser is not indented.
 nonIndented :: Parser a -> Parser a
 nonIndented = MPL.nonIndented space
-indentBlock :: ParsecT Dec Text Identity (MPL.IndentOpt (ParsecT Dec Text Identity) a b)
-            -> ParsecT Dec Text Identity a
+indentBlock :: Parser (MPL.IndentOpt Parser a b)
+            -> Parser a
 indentBlock = MPL.indentBlock space

@@ -20,7 +20,7 @@ module Yarn.Lock.File
 , ConversionError(..)
 ) where
 
-import Protolude hiding (hash)
+import Protolude hiding (hash, getField)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import qualified Data.Text as Text

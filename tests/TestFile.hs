@@ -67,7 +67,7 @@ case_missingField = do
 astToPackageSuccess :: Parse.PackageFields -> IO T.Package
 astToPackageSuccess ast = case File.astToPackage ast of
   (Left errs) -> do
-     assertFailure ("should have succeded, but:\n" <> show errs)
+     _ <- assertFailure ("should have succeded, but:\n" <> show errs)
      panic "not reached"
   (Right pkg) -> pure pkg
 
