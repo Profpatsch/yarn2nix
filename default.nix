@@ -14,6 +14,11 @@
                   (old: {
                     prePatch = old.prePatch or "" + ''
                       ${oldpkgs.lib.getBin self.hpack}/bin/hpack
+                      # we depend on the git prefetcher
+                      substituteInPlace \
+                        src/Distribution/Nixpkgs/Nodejs/ResolveLockfile.hs \
+                        --replace '"nix-prefetch-git"' \
+                          '"${pkgs.nix-prefetch-scripts}/bin/nix-prefetch-git"'
                     '';
                   });
               in oldpkgs.haskell.lib.overrideCabal pkg (old: {

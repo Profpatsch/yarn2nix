@@ -23,6 +23,9 @@ import qualified Control.Monad.STM as STM
 
 import qualified Yarn.Lock.Types as YLT
 
+nixPrefetchGitPath :: FilePath
+nixPrefetchGitPath = "nix-prefetch-git"
+
 maxFetchers :: Int
 maxFetchers = 5
 
@@ -62,7 +65,7 @@ resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup 
 
     fetchFromGit :: Text -> Text -> E.ExceptT Text IO Text
     fetchFromGit repo rev = do
-      res <- liftIO $ Process.readProcessWithExitCode "nix-prefetch-git"
+      res <- liftIO $ Process.readProcessWithExitCode nixPrefetchGitPath
                ["--url", toS repo, "--rev", toS rev, "--hash", "sha256"] ""
       case res of
         ((ExitFailure _), _, err) -> E.throwE $ toS err
