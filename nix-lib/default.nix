@@ -19,6 +19,8 @@ let
         # from the templates.
         # It is basically a manual paramorphism, carrying parts of the
         # information of the previous layer (the original package name).
+        # TODO: move that function out of the package set
+        #       and get nice self/super scoping right
         _buildNodePackage = { name, ... }@args:
           { inherit name; drv = buildNodePackage args; };
       }));
@@ -44,7 +46,14 @@ let
   # TODO: copy manpages & docs as well
   # type: String -> ListOf { name: String, drv : Drv } -> Drv
   linkNodeDeps = {name, version}: packageDeps:
-    pkgs.runCommand ("${name}-${version}-node_modules") {} ''
+    pkgs.runCommand ("${name}-${version}-node_modules") {
+      # This just creates a simple link farm, which should be pretty fast,
+      # saving us from additional hydra requests for potentially hundreds
+      # of packages.
+      allowSubstitutes = false;
+      # Also tell Hydra it’s not worth copying to a builder.
+      preferLocalBuild = true;
+    } ''
       mkdir -p $out/.bin
       ${lib.concatMapStringsSep "\n"
         (dep: ''
