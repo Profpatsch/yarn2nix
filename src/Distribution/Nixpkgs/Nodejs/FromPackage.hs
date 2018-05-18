@@ -27,7 +27,6 @@ genTemplate :: NP.Package -> NExpr
 genTemplate NP.Package{..} =
   simpleParamSet ["stdenv", "buildNodePackage", "removePrefixes"]
   ==> Param nodeDepsSym
-  -- TODO: devDeps
   ==> ("buildNodePackage" @@ mkRecSet
         [ "name" $= nameStr
         , "version" $= mkStr version
@@ -41,7 +40,12 @@ genTemplate NP.Package{..} =
           <> may "homepage" homepage)
         ])
   where
-    depPkgKeys = depsToPkgKeys dependencies
+    -- TODO: The devDependencies are only needed for the build
+    -- and probably also only from packages not stemming from
+    -- a npm registry (e.g. a git package). It would be cool
+    -- if these dependencies were gone in the final output.
+    -- See https://github.com/Profpatsch/yarn2nix/issues/5
+    depPkgKeys = depsToPkgKeys (dependencies <> devDependencies)
     pkgDep depsSym pk = mkSym depsSym !!. packageKeyToSymbol pk
     nodeDepsSym = "allDeps"
     nameStr = mkStrQ [StrQ name]
