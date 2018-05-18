@@ -59,7 +59,7 @@ tryIOMsg errAnn = ExcT.withExceptT (errAnn . Exc.displayException) . tryIO
 
 main :: IO ()
 main = execParser (info (args <**> helper)
-                    (progDesc "Link various files from npm packages to folders"))
+                    (progDesc "Tool for various node package maintenance tasks"))
        >>= realMain
 
 realMain :: Args -> IO ()

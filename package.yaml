@@ -50,8 +50,8 @@ executables:
     main: Main.hs
     dependencies:
       - yarn2nix
-  setup-node-package-paths:
-    main: SetupNodePackagePaths.hs
+  node-package-tool:
+    main: NodePackageTool.hs
     dependencies:
       - optparse-applicative >= 0.13 && < 0.15
       - unix == 2.7.*

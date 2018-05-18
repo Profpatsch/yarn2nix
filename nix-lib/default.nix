@@ -59,8 +59,8 @@ let
         (dep: ''
           echo "linking node dependency ${dep.name}"
           ln -sT ${dep.drv} "$out/${dep.name}"
-          ${yarn2nix}/bin/setup-node-package-paths \
-            bin \
+          ${yarn2nix}/bin/node-package-tool \
+            link-bin \
             --to=$out/.bin \
             --package=$out/${dep.name}
         '')
