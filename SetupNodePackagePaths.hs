@@ -14,44 +14,67 @@ import Options.Applicative
 import qualified Distribution.Nodejs.Package as NP
 
 data Args
-  = Args { argMode :: Mode
-         , argTargetDir :: FilePath
-         , argPackageDir :: FilePath }
+  = Args
+    { argsPackageDir :: FilePath
+    , argsMode :: Mode }
 
-data Mode = BinMode
+data Mode
+  = LinkBin
+    { linkBinTargetDir :: FilePath }
+  | SetBinExecFlag
 
 args :: Parser Args
 args = subparser
-    ( command "bin" (info (modeCommands BinMode)
-                    (progDesc "link package bin files")) )
+    (  command "link-bin"
+       (info (modeCommands linkBinSubcommands)
+         (progDesc "link package dependecies’ bin files"))
+    <> command "set-bin-exec-flag"
+       (info (modeCommands setBinExecFlagSubcommands)
+         (progDesc "make all bin scripts executable")) )
   where
-    modeCommands mode = Args
-      <$> pure mode
-      <*> strOption
-            ( long "to"
-           <> metavar "LINK_TARGET"
-           <> help "folder to link to (absolute or relative from package folder)" )
-      <*> strOption
-            ( long "package"
-           <> metavar "FOLDER"
-           <> help "folder with the node package" )
+    modeCommands modeSubcommands = Args
+      <$> strOption
+        ( long "package"
+        <> metavar "FOLDER"
+        <> help "folder with the node package" )
+      <*> modeSubcommands
+    linkBinSubcommands = LinkBin
+      <$> strOption
+        ( long "to"
+        <> metavar "LINK_TARGET"
+        <> help "folder to link to (absolute or relative from package folder)" )
+    setBinExecFlagSubcommands = pure SetBinExecFlag
   
+
+type ErrorLogger = ExceptT [Char] IO
+
+-- | Print a warning to stdout.
+warn :: [Text] -> ErrorLogger ()
+warn ws = for_ ws $ \w -> liftIO $ TIO.hPutStrLn stderr ("Warning: " <> w)
+
+-- | On Exception rethrow with annotation.
+tryIOMsg :: ([Char] -> [Char]) -> IO a -> ErrorLogger a
+tryIOMsg errAnn = ExcT.withExceptT (errAnn . Exc.displayException) . tryIO
+
 
 main :: IO ()
 main = execParser (info (args <**> helper)
                     (progDesc "Link various files from npm packages to folders"))
        >>= realMain
 
-type ErrorLogger = ExceptT [Char] IO
-
 realMain :: Args -> IO ()
 realMain Args{..} = do
-  let packageJsonPath = argPackageDir FP.</> "package.json"
-  unlessM (Dir.doesDirectoryExist argTargetDir)
-    $ die $ toS $ argTargetDir <> " is not a directory."
+  -- basic sanity checks
+  let packageJsonPath = argsPackageDir FP.</> "package.json"
   unlessM (Dir.doesFileExist packageJsonPath)
     $ die $ toS $ packageJsonPath <> " does not exist."
+  case argsMode of
+    LinkBin{..} -> do
+      unlessM (Dir.doesDirectoryExist linkBinTargetDir)
+        $ die $ toS $ linkBinTargetDir <> " is not a directory."
+    _ -> pass
 
+  -- parse & decode & run logic
   runExceptT
     (tryRead packageJsonPath >>= tryDecode packageJsonPath >>= go)
     >>= \case
@@ -59,9 +82,6 @@ realMain Args{..} = do
       (Right _) -> pass
 
   where
-    tryIOMsg :: ([Char] -> [Char]) -> IO a -> ErrorLogger a
-    tryIOMsg errAnn = ExcT.withExceptT (errAnn . Exc.displayException) . tryIO
-
     tryRead :: FilePath -> ErrorLogger BL.ByteString
     tryRead fp = tryIOMsg exc $ BL.readFile fp
       where exc e = fp <> " cannot be read:\n" <> e
@@ -73,44 +93,78 @@ realMain Args{..} = do
       pure pkg
       where exc e = fp <> " cannot be decoded\n" <> toS e
 
+    tryAccess :: IO a -> IO (Maybe a)
+    tryAccess io =
+      hush <$> tryJust
+        (\e -> guard (IOErr.isDoesNotExistError e ||
+                      IOErr.isPermissionError e))
+          io
+
     qte s = "\"" <> s <> "\""
-    warn :: [Text] -> ErrorLogger ()
-    warn ws = for_ ws $ \w -> liftIO $ TIO.hPutStrLn stderr ("Warning: " <> w)
 
     go :: NP.Package -> ErrorLogger ()
-    go NP.Package{bin} = case argMode of
-      BinMode -> traverse_ linkBin =<< case bin of
-        -- files with names how they should be linked
-        (NP.BinFiles bs) -> pure $ HML.toList bs
-        -- a whole folder where everything should be linked
-        (NP.BinFolder bf) -> do
-          dirE <- liftIO $ tryJust
-            (\e -> guard (IOErr.isDoesNotExistError e ||
-                          IOErr.isPermissionError e))
-            (Dir.listDirectory bf)
-          case dirE of
-            (Left _) -> do
-              warn ["Binary folder " <> toS (qte bf) <> " could not be accessed."]
-              pure []
-            (Right dir) ->
-              pure $ fmap (\f -> (toS f, bf FP.</> f)) dir
+    go NP.Package{bin} = do
+     binFiles <- readBinFiles bin
+     for_ binFiles $ case argsMode of
+        -- Link all dependency binaries to their target folder
+        LinkBin{..} -> linkBin linkBinTargetDir
+        -- Set the executable flag of all package binaries
+        SetBinExecFlag -> setBinExecFlag . snd
+
+    -- | Read the binary files and return their names & paths.
+    readBinFiles :: NP.Bin -> ErrorLogger [(Text, FilePath)]
+    readBinFiles bin = case bin of
+      -- files with names how they should be linked
+      (NP.BinFiles bs) -> pure $ HML.toList bs
+      -- a whole folder where everything should be linked
+      (NP.BinFolder bf) -> do
+        dirM <- liftIO $ tryAccess (Dir.listDirectory bf)
+        case dirM of
+          Nothing -> do
+            warn ["Binary folder " <> toS (qte bf) <> " could not be accessed."]
+            pure []
+          (Just dir) ->
+            pure $ fmap (\f -> (toS f, bf FP.</> f)) dir
+
+    -- | Canonicalize the path.
+    canon :: FilePath -> ErrorLogger FilePath
+    canon fp = tryIOMsg
+      (\e -> "Couldn’t canonicalize path " <> qte fp <> ": " <> e)
+      (Dir.canonicalizePath fp)
+
+    -- | Canonicalize relative to our package
+    -- and ensure that the relative path is not outside.
+    canonPkg :: FilePath -> ErrorLogger FilePath
+    canonPkg relPath = do
+      pkgDir <- canon argsPackageDir
+      resPath <- canon $ argsPackageDir FP.</> relPath
+      when (not $ pkgDir `isPrefixOf` resPath)
+        $ throwError $ mconcat
+          [ "The link to executable file "
+          , qte relPath
+          , " lies outside of the package folder!\n"
+          , "That’s a security risk, aborting." ]
+      pure resPath
 
     -- | Link a binary file to @targetDir/name@.
     -- @relBinPath@ is relative from the package dir.
-    linkBin :: (Text, FilePath) -> ErrorLogger ()
-    linkBin (name, relBinPath) = do
-      let canon fp = tryIOMsg
-            (\e -> "Couldn’t canonicalize path " <> qte fp <> ": " <> e)
-            (Dir.canonicalizePath fp)
-      pkgDir <- canon argPackageDir
-      binPath <- canon $ argPackageDir FP.</> relBinPath
-      targetDir <- canon argTargetDir
-      when (not $ pkgDir `isPrefixOf` binPath)
-        $ throwError $ mconcat
-          [ "The link to executable file "
-          , qte relBinPath
-          , " lies outside of the package folder!\n"
-          , "That’s a security risk, aborting." ]
+    linkBin :: FilePath -> (Text, FilePath) -> ErrorLogger ()
+    linkBin targetDir_ (name, relBinPath) = do
+      binPath <- canonPkg relBinPath
+      targetDir <- canon targetDir_
       tryIOMsg
         (\e -> "Symlink could not be created: " <> e)
         (PosixFiles.createSymbolicLink binPath $ targetDir FP.</> toS name)
+
+    -- | Set executable flag of the file.
+    setBinExecFlag :: FilePath -> ErrorLogger ()
+    setBinExecFlag file_ = do
+      file <- canonPkg file_
+      res <- liftIO $ tryAccess $ do
+        perm <- Dir.getPermissions file
+        Dir.setPermissions file
+          $ Dir.setOwnerExecutable True perm
+      case res of
+        Nothing ->
+          warn ["Cannot set executable bit on " <> toS file]
+        Just () -> pass
