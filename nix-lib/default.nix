@@ -36,7 +36,7 @@ let
 
 
   buildNodePackage = import ./buildNodePackage.nix {
-    inherit linkNodeDeps;
+    inherit linkNodeDeps yarn2nix;
     inherit (pkgs) stdenv nodejs;
   };
 

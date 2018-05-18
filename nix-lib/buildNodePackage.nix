@@ -1,4 +1,4 @@
-{ stdenv, linkNodeDeps, nodejs }:
+{ stdenv, linkNodeDeps, nodejs, yarn2nix }:
 { name # String
 , version # String
 , src # Drv
@@ -32,6 +32,11 @@ stdenv.mkDerivation ((removeAttrs args [ "nodeBuildInputs" ]) // {
 
     # a npm package is just the tarball extracted to $out
     cp -r . $out
+
+    # the binaries should be executable (TODO: always on?)
+    ${yarn2nix}/bin/node-package-tool \
+      set-bin-exec-flag \
+      --package $out
 
     # then a node_modules folder is created for all its dependencies
     ${if nodeBuildInputs != []
