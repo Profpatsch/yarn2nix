@@ -73,7 +73,7 @@ Once you have the `yarn2nix` binary, use it to generate nix files for the
 
 ```shell
 $ yarn2nix ./jsprotect/yarn.lock > npm-deps.nix
-$ yarn2nix --template ./jsoproject/package.json > npm-package.nix
+$ yarn2nix --template ./jsproject/package.json > npm-package.nix
 ```
 
 Then use the library to assemble the generated files in a `default.nix`:
@@ -89,8 +89,11 @@ let
     yarn2nix = import /path/to/yarn2nix/ { inherit nixpkgsPath; };
   };
   
-in nixLib.callTemplate ./npm-package.nix
-     (nixLib.buildNodeDeps ./npm-deps.nix)
+in
+  nixLib.buildNodePackage
+    ( { src = nixLib.removePrefixes [ "node_modules" ] ./.; } //
+      nixLib.callTemplate ./npm-package.nix
+        (nixLib.buildNodeDeps ./npm-deps.nix) )
 ```
 
 Finally, run `nix-build`, and voilà, in `./result/` you find the project with
