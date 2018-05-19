@@ -13,8 +13,11 @@ assert (args ? preConfigure || args ? postConfigure) -> args ? configurePhase;
 
 with stdenv.lib;
 
-stdenv.mkDerivation ((removeAttrs args [ "nodeBuildInputs" ]) // {
-  name = "${name}-${version}";
+let
+  packageName = "${name}-${version}";
+
+in stdenv.mkDerivation ((removeAttrs args [ "nodeBuildInputs" ]) // {
+  name = packageName;
   inherit version src;
 
   buildInputs = [ nodejs ];
@@ -42,8 +45,10 @@ stdenv.mkDerivation ((removeAttrs args [ "nodeBuildInputs" ]) // {
     ${if nodeBuildInputs != []
       then ''
         rm -rf $out/node_modules
-        ln -sT "${linkNodeDeps
-          { inherit name version; } nodeBuildInputs}" $out/node_modules
+        ln -sT "${linkNodeDeps {
+            name = packageName;
+            dependencies = nodeBuildInputs;
+          }}" $out/node_modules
       '' else ""}
 
     runHook postInstall

@@ -44,9 +44,11 @@ let
   # by npm’s module system to call dependencies.
   # Also link executables of all dependencies into `.bin`.
   # TODO: copy manpages & docs as well
-  # type: String -> ListOf { name: String, drv : Drv } -> Drv
-  linkNodeDeps = {name, version}: packageDeps:
-    pkgs.runCommand ("${name}-${version}-node_modules") {
+  # type: { name: String
+  #       , dependencies: ListOf { name: String, drv : Drv } }
+  #       -> Drv
+  linkNodeDeps = {name, dependencies}:
+    pkgs.runCommand ("${name}-node_modules") {
       # This just creates a simple link farm, which should be pretty fast,
       # saving us from additional hydra requests for potentially hundreds
       # of packages.
@@ -64,7 +66,7 @@ let
             --to=$out/.bin \
             --package=$out/${dep.name}
         '')
-        packageDeps}
+        dependencies}
     '';
 
   # Filter out files/directories with one of the given prefix names
