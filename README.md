@@ -19,6 +19,7 @@ In the second invocation generate a template for your `package.json`.
 - Extremely fast.
 - Nice code that can be easily extended, new repositories introduced, adapt to new versions of the `yarn.lock` format.
 - Comes with a [nix library][nix-lib] that uses the power of overlays to make overriding dependencies possible.
+- POWERED BY [HNIX](https://github.com/haskell-nix/hnix)™ since before it was cool.
 
 Probably a few more.
 
