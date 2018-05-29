@@ -87,9 +87,9 @@ let
     # WARNING (TODO): for now you need to use this checked out yarn2nix
     # because the upstream package (in haskellPackages) might have
     # broken dependencies (yarn-lock and yarn2nix are not in stackage)
-    yarn2nix = import /path/to/yarn2nix/ { inherit nixpkgsPath; };
+    yarn2nix = import /path/to/yarn2nix { inherit nixpkgsPath; };
   };
-  
+
 in
   nixLib.buildNodePackage
     ( { src = nixLib.removePrefixes [ "node_modules" ] ./.; } //
