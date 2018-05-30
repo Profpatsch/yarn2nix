@@ -77,7 +77,7 @@ cli = \case
         Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)
 
 die' :: Text -> IO a
-die' err = putText err *> exitFailure
+die' err = putErrText err *> exitFailure
 dieWithUsage :: Text -> IO ()
 dieWithUsage err = die' (err <> "\n" <> usage)
 
