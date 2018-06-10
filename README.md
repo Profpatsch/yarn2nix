@@ -94,7 +94,7 @@ in
   nixLib.buildNodePackage
     ( { src = nixLib.removePrefixes [ "node_modules" ] ./.; } //
       nixLib.callTemplate ./npm-package.nix
-        (nixLib.buildNodeDeps ./npm-deps.nix) )
+        (nixLib.buildNodeDeps (pkgs.callPackage ./npm-deps.nix {}))
 ```
 
 Finally, run `nix-build`, and voilà, in `./result/` you find the project with
