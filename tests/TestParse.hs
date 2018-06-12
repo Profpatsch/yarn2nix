@@ -27,7 +27,7 @@ case_startCommentEmptyPackageList = do
   parseSuccess packageList startComment
     >>= \((Keyed keys _) : _) -> do
       assertBool "only foo"
-        (keys == pure (PackageKey "dummy-package" "foo"))
+        (keys == pure (PackageKey (SimplePackageKey "dummy-package") "foo"))
 
 -- registryPackage :: Text
 -- registryPackage = [text|
@@ -92,7 +92,7 @@ case_NestedPackage = do
           assertEqual "nested keys" 4 $ length nested
           assertEqual "dep exists" (Just (Left "2.3.4"))
             $ Map.lookup "johnny-dep" nested
-          assertEqual "there can be @" (Just (Left "~0.10.x"))
+          assertEqual "scoped packages start with @" (Just (Left "~0.10.x"))
             $ Map.lookup "@types/string_decoder" nested
 
 case_PackageField :: IO ()
@@ -112,16 +112,16 @@ case_PackageField = do
 
 case_PackageKey :: Assertion
 case_PackageKey = do
-  let key = "foo@^1.3.4, bar@blafoo234, xnu@, @types/foo@@:\n"
+  let key = "foo@^1.3.4, bar@blafoo234, xnu@, @types/foo@:\n"
   parseSuccess packageKeys key
     >>= \keys -> do
       keys @?= NE.fromList
-               [ PackageKey "foo" "^1.3.4"
-               , PackageKey "bar" "blafoo234"
+               [ PackageKey (SimplePackageKey "foo") "^1.3.4"
+               , PackageKey (SimplePackageKey "bar") "blafoo234"
                -- yes, the version can be empty …
-               , PackageKey "xnu" ""
+               , PackageKey (SimplePackageKey "xnu") ""
                -- and yes, package names can contain `@`
-               , PackageKey "@types/foo@" ""
+               , PackageKey (ScopedPackageKey "types" "foo") ""
                ]
 
 
@@ -135,7 +135,8 @@ case_complexKey :: Assertion
 case_complexKey = do
   parseSuccess packageKeys complexKeyExample
     >>= \((PackageKey name version) NE.:| []) -> do
-      assertEqual "complexKey name" "mango-components" name
+      assertEqual "complexKey name"
+        (SimplePackageKey "mango-components") name
       assertEqual "complexKey version"
         "git+ssh://git@github.com:mango-chutney/mango-components.git#f617aa4"
         version

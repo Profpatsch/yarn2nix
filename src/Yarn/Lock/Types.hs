@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, OverloadedStrings #-}
 {-|
 Module : Yarn.Lock.Types
 Description : Types for yarn.lock files
@@ -8,6 +8,7 @@ Stability : experimental
 module Yarn.Lock.Types where
 
 import Protolude hiding (try)
+import qualified Data.Text as T
 import qualified Data.MultiKeyedMap as MKM
 import qualified Data.List.NonEmpty as NE
 
@@ -27,11 +28,27 @@ lockfileIkProxy = Proxy
 
 -- | Key that indexes package for a specific version.
 data PackageKey = PackageKey
-  { name           :: Text -- ^ package name
+  { name           :: PackageKeyName -- ^ package name
   , npmVersionSpec :: Text
   -- ^ tring that specifies the version of a package;
   -- sometimes a npm semver, sometimes an arbitrary string
   } deriving (Show, Eq, Ord)
+
+-- The name of a package. They can be scoped, see
+-- <https://docs.npmjs.com/misc/scope> for an explanation.
+data PackageKeyName
+  = SimplePackageKey Text
+  -- ^ just a package name
+  | ScopedPackageKey Text Text
+  -- ^ a scope and a package name (e.g. @types/foobar)
+  deriving (Show, Eq, Ord)
+
+parsePackageKeyName :: Text -> Maybe PackageKeyName
+parsePackageKeyName n = case T.stripPrefix "@" n of
+  Nothing -> Just $ SimplePackageKey n
+  Just sc -> case T.breakOn "/" sc of
+    (_, "") -> Nothing
+    (scope, pkg) -> Just $ ScopedPackageKey scope (T.drop 1 pkg)
 
 -- | Something with a list of 'PackageKey's pointing to it.
 data Keyed a = Keyed (NE.NonEmpty PackageKey) a

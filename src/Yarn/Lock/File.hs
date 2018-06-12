@@ -95,6 +95,11 @@ astToPackage = V.validationToEither . validate
     text = FieldParser { parseField = either Just (const Nothing)
                        , parserName = "text" }
 
+    packageKey :: FieldParser T.PackageKeyName
+    packageKey = FieldParser
+      { parseField = parseField text >=> T.parsePackageKeyName
+      , parserName = "package key" }
+
     -- | Parse a field nested one level to a list of 'PackageKey's.
     keylist :: FieldParser [T.PackageKey]
     keylist = FieldParser
@@ -102,8 +107,9 @@ astToPackage = V.validationToEither . validate
       , parseField = either (const Nothing)
              (\(Parse.PackageFields inner) ->
                   for (M.toList inner) $ \(k, v) -> do
+                    name <- parseField packageKey (Left k)
                     npmVersionSpec <- parseField text v
-                    pure $ T.PackageKey { T.name = k, ..}) }
+                    pure $ T.PackageKey { name, npmVersionSpec }) }
 
     -- | Appling heuristics to the field contents to find the
     -- correct remote type.

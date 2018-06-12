@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.5.0] - 2018-05-15
+## [0.5.0] - 2018-06-12
+
+### Changed
+
+- `PackageKey`s now correctly parse scoped npm names
+  - This means `Text` is now a sum of `SimplePackageKey`/`ScopedPackageKey`
+
+## [0.4.1] - 2018-05-15
 
 ### Changed
 

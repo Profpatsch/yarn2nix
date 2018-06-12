@@ -112,15 +112,18 @@ packageKey separators = inString (pkgKey "\"")
     pkgKey valueChars = label "package key" $ do
       key <- someTextOf (MP.noneOf valueChars)
       -- okay, here’s the rub:
-      -- `@` is used for separation, but package names containing `@`
-      -- are totally a thing. As first character, as well.
-      -- As are package keys without any semver whatsoever, thus ending
-      -- with `@`.
-      -- Did I mention this file format is big chunks of elephant shit?
+      -- `@` is used for separation, but package names can also
+      -- start with the `@` character (so-called “scoped packages”).
       case (\(n, v) -> (T.dropEnd 1 n, v)) $ T.breakOnEnd "@" key of
-        ("", _) -> fail "packageKey: package name can not be empty"
-        (n, "") -> pure $ YLT.PackageKey n ""
-        (n,  v) -> pure $ YLT.PackageKey n v
+        ("", _) -> fail
+                $ "packagekey: package name can not be empty (is: "
+                <> toS key <> ")"
+        (n, "") -> YLT.PackageKey <$> scoped n <*> pure ""
+        (n,  v) -> YLT.PackageKey <$> scoped n <*> pure v
+    scoped n = maybe
+      (fail $ "packageKey: scoped variable must be of form @scope/package"
+           <> " (is: " <> toS n <> ")")
+      pure $ YLT.parsePackageKeyName n
 
 -- | Either a simple or a nested field.
 field :: Parser (Text, Either Text PackageFields)
