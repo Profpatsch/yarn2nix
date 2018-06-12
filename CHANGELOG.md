@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `PackageKey`s now correctly parse scoped npm names
   - This means `Text` is now a sum of `SimplePackageKey`/`ScopedPackageKey`
 
+### Fixed
+
+- `PackageKey`s with versions containing `@` parse correctly
+  - Like for example `git+ssh:git@github.com` links for some git packages
+
 ## [0.4.1] - 2018-05-15
 
 ### Changed

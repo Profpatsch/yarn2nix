@@ -36,8 +36,9 @@ import qualified Text.Megaparsec.Char.Lexer as MPL
 
 import qualified Yarn.Lock.Types as YLT
 
-type Parser = Parsec Void Text
 
+-- | We use a simple (pure) @Megaparsec@ parser.
+type Parser = Parsec Void Text
 
 -- | The @yarn.lock@ format doesn’t specifically include a fixed scheme,
 -- it’s just an unnecessary custom version of a list of fields.
@@ -114,12 +115,30 @@ packageKey separators = inString (pkgKey "\"")
       -- okay, here’s the rub:
       -- `@` is used for separation, but package names can also
       -- start with the `@` character (so-called “scoped packages”).
-      case (\(n, v) -> (T.dropEnd 1 n, v)) $ T.breakOnEnd "@" key of
-        ("", _) -> fail
-                $ "packagekey: package name can not be empty (is: "
-                <> toS key <> ")"
-        (n, "") -> YLT.PackageKey <$> scoped n <*> pure ""
-        (n,  v) -> YLT.PackageKey <$> scoped n <*> pure v
+      -- Furthermore, versions can contain `@` as well.
+      -- This file format is a pile of elephant shit.
+      case breakDrop '@' key of
+        ("", rest) -> case breakDrop '@' rest of
+          -- scoped key with empty name
+          ("", _) -> emptyKeyErr key
+          -- scoped key ("@scope/package")
+          (scopedName, ver) -> YLT.PackageKey
+            <$> scoped (T.cons '@' scopedName) <*> pure ver
+        -- just a simple key
+        (name, ver) -> pure $ YLT.PackageKey (YLT.SimplePackageKey name) ver
+
+    emptyKeyErr :: Text -> Parser a
+    emptyKeyErr key = fail
+      ("packagekey: package name can not be empty (is: "
+      <> toS key <> ")")
+
+    -- | Like 'T.breakOn', but drops the separator char.
+    breakDrop :: Char -> Text -> (Text, Text)
+    breakDrop c str = case T.breakOn (T.singleton c) str of
+      (s, "") -> (s, "")
+      (s, s') -> (s, T.drop 1 s')
+
+    -- | Parses a (scoped) package key and throws an error if misformatted.
     scoped n = maybe
       (fail $ "packageKey: scoped variable must be of form @scope/package"
            <> " (is: " <> toS n <> ")")
@@ -178,6 +197,8 @@ indentedFieldsWithHeader header = indentBlock $ do
 --
 -- Update: npm doesn’t specify the package name format, at all.
 -- Apart from the length.
+-- Update: According to https://docs.npmjs.com/misc/scope
+-- the package name format is “URL-safe characters, no leading dots or underscores” TODO
 symbolChars :: Parser Text
 symbolChars = label "key symbol" $ someTextOf $ MP.satisfy
   (\c -> Ch.isAscii c &&

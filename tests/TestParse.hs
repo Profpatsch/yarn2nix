@@ -126,20 +126,22 @@ case_PackageKey = do
 
 
 -- | PackageKeys can contain arbitrary stuff apparently
-complexKeyExample :: Text
-complexKeyExample = [text|
-  "mango-components@git+ssh://git@github.com:mango-chutney/mango-components.git#f617aa4":
-  |]
-
 case_complexKey :: Assertion
 case_complexKey = do
-  parseSuccess packageKeys complexKeyExample
+  parseSuccess packageKeys
+    "\"mango-components@git+ssh://git@github.com:stuff/#fe234\":"
     >>= \((PackageKey name version) NE.:| []) -> do
       assertEqual "complexKey name"
         (SimplePackageKey "mango-components") name
       assertEqual "complexKey version"
-        "git+ssh://git@github.com:mango-chutney/mango-components.git#f617aa4"
+        "git+ssh://git@github.com:stuff/#fe234"
         version
+  parseSuccess packageKeys
+    "\"@types/mango-components@git@github\":"
+    >>= \((PackageKey name version) NE.:| []) -> do
+      assertEqual "complexKeyScoped name"
+        (ScopedPackageKey "types" "mango-components") name
+      assertEqual "complexKeyScoped version" "git@github" version
 
 
 -- HELPERS
