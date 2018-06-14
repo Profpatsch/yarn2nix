@@ -7,9 +7,9 @@ self: super:
 let
   buildNodePackage = super._buildNodePackage;
 
-  localFilePackage = name: version: path: deps:
+  localFilePackage = key: version: path: deps:
     buildNodePackage {
-      inherit name version;
+      inherit key version;
       nodeBuildInputs = deps;
       src = path;
     };

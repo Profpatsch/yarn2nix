@@ -87,11 +87,11 @@ data PkgRef
 
 -- | Package definition needed for calling the build function.
 data PkgData a = PkgData
-  { pkgDataName :: Text           -- ^ package name
-  , pkgDataVersion :: Text        -- ^ package version
-  , pkgDataUpstream :: a          -- ^ points to upstream
-  , pkgDataHashSum :: Text        -- ^ the hash sum of the package
-  , pkgDataDependencies :: [Text] -- ^ list of dependencies (as resolved nix symbols)
+  { pkgDataName :: YLT.PackageKeyName -- ^ package name
+  , pkgDataVersion :: Text            -- ^ package version
+  , pkgDataUpstream :: a              -- ^ points to upstream
+  , pkgDataHashSum :: Text            -- ^ the hash sum of the package
+  , pkgDataDependencies :: [Text]     -- ^ list of dependencies (as resolved nix symbols)
   }
 
 -- | Tuples of prefix string to registry
@@ -117,22 +117,23 @@ shortcuts = M.fromList
   , (["nodeFilePackage"], "f")
   , (["nodeGitPackage"], "g")
   , (["identityRegistry"], "ir")
+  , (["scopedName"], "sc")
   ]
 
 -- | Find out which registry the given 'YLT.Remote' shortens to.
-recognizeRegistry :: Text -- ^ package name
+recognizeRegistry :: YLT.PackageKeyName -- ^ package name
                   -> Text -- ^ url to file
                   -> Maybe Registry
-recognizeRegistry pkgName fileUrl = snd <$> foundRegistry
+-- We don’t shorten scoped key names, because
+-- they are handled specially by npm registries and
+-- the URLs differ from other packages
+recognizeRegistry (YLT.ScopedPackageKey{}) _ = Nothing
+recognizeRegistry _ fileUrl = snd <$> foundRegistry
   where
     -- | Get registry by the prefix of the registry’s URL.
     foundRegistry = find predicate registries
     predicate :: (Text, Registry) -> Bool
     predicate reg = fst reg `T.isPrefixOf` fileUrl
-             -- We have to check for names containing `/`, because
-             -- they are handled specially by npm registries and
-             -- the URLs differ from other packages, so we don’t shorten them.
-             && not (T.any (== '/') pkgName)
 
 
 -- | Convert a 'Res.ResolvedLockfile' to its final, nix-ready form.
@@ -184,8 +185,6 @@ let
     yarn = n: v: "https://registry.yarnpkg.com/${n}/-/${n}-${v}.tgz";
   };
 
-  sanitizePackageName = builtins.replaceStrings ["@" "/"] ["-" "-"];
-
   # We want each package definition to be one line, by putting
   # the boilerplate into these functions for different remotes.
   nodeFilePackage = …
@@ -194,18 +193,23 @@ let
   # an identity function for e.g. git repos or unknown registries
   identityRegistry = url: _: _: url;
 
+  # a way to pass through scoped package names
+  scopedName = scope: name: { inherit scope name; }
+
   # shortcut section
   s = self;
   ir = identityRegistry;
   f = nodeFilePackage;
   g = nodeGitPackage;
   y = registries.yarnpkg;
+  sc = scopedName;
   …
 
 # the actual package definitions
 in {
   "accepts@~1.3.3" = s."accepts@1.3.3";
   "accepts@1.3.3" = f "accepts" "1.3.3" y "sha" [];
+  "@types/accepts@1.3.3" = f (sc "types" "accepts") "1.3.3" y "sha" [];
   "babel-core@^6.14.0" = s."babel-core@6.24.1";
   "babel-core@6.24.1" = f "babel-core" "6.24.1" y "a0e457c58ebdbae575c9f8cd75127e93756435d8" [
     s."accepts@~1.3.3"
@@ -225,10 +229,13 @@ mkPackageSet packages =
     ==> N.Param "self" ==> N.Param "super"
     ==> N.mkLets
         (  [ "registries" $= N.mkNonRecSet (fmap (mkRegistry . snd) registries)
-           , "sanitizePackageName" $= sanitizePackageName
            , "nodeFilePackage" $= buildPkgFn
            , "nodeGitPackage" $= buildPkgGitFn
-           , "identityRegistry" $= NA.multiParam ["url", "_", "_"] "url" ]
+           , "identityRegistry" $= NA.multiParam ["url", "_", "_"] "url"
+           , "scopedName" $=
+               (NA.multiParam ["scope", "name"]
+                 $ N.mkNonRecSet [ inheritStatic ["scope", "name"] ])
+           ]
         <> fmap mkShortcut (M.toList shortcuts) )
         (N.mkNonRecSet (map mkPkg $ M.toAscList packages))
   where
@@ -243,20 +250,12 @@ mkPackageSet packages =
     -- | Try to shorten sym, otherwise use input.
     shorten :: [NSym] -> NExpr
     shorten s = maybe (concatNSyms s) (N.mkSym . unNSym) $ M.lookup s shortcuts
-
-    -- | remove symbols not allowed in nix derivation names
-    sanitizePackageName :: NExpr
-    sanitizePackageName = "builtins" !!. "replaceStrings"
-                            @@ N.mkList [N.mkStr "@", N.mkStr "/"]
-                            @@ N.mkList [N.mkStr "-", N.mkStr "-"]
-
     -- | Build function boilerplate the build functions share in common.
     buildPkgFnGeneric :: [Text] -> NExpr -> NExpr
     buildPkgFnGeneric additionalArguments srcNExpr =
-      NA.multiParam (["name", "version"] <> additionalArguments <> ["deps"])
+      NA.multiParam (["key", "version"] <> additionalArguments <> ["deps"])
         $ ("super" !!. "_buildNodePackage") @@ N.mkNonRecSet
-          [ "name" $= ("sanitizePackageName" @@ "name")
-          , inheritStatic ["version"]
+          [ inheritStatic ["key", "version"]
           , "src" $= srcNExpr
           , "nodeBuildInputs" $= "deps" ]
     -- | Building a 'YLT.FileRemote' package.
@@ -264,7 +263,7 @@ mkPackageSet packages =
     buildPkgFn =
       buildPkgFnGeneric ["registry", "sha1"]
         ("fetchurl" @@ N.mkNonRecSet
-          [ "url" $= ("registry" @@ "name" @@ "version")
+          [ "url" $= ("registry" @@ "key" @@ "version")
           , inheritStatic ["sha1"] ])
     -- | Building a 'YLT.GitRemote' package.
     buildPkgGitFn :: NExpr
@@ -276,8 +275,10 @@ mkPackageSet packages =
     mkDefGeneric :: PkgData a -> NSym -> [NExpr] -> NExpr
     mkDefGeneric PkgData{..} buildFnSym additionalArguments =
       foldl' (@@) (shorten [buildFnSym])
-        $ [  N.mkStr pkgDataName
-          ,  N.mkStr pkgDataVersion ]
+        $ [ case pkgDataName of
+              YLT.SimplePackageKey n -> N.mkStr n
+              YLT.ScopedPackageKey s n -> "sc" @@ N.mkStr s @@ N.mkStr n
+          , N.mkStr pkgDataVersion ]
           <> additionalArguments <>
           [ N.mkList $ map (N.mkSym selfSym !!.) pkgDataDependencies ]
 

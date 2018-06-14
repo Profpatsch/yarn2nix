@@ -34,6 +34,7 @@ infixr 2 $$=
 dynamicKey :: Text -> NKeyName NExpr
 dynamicKey k = DynamicKey $ Plain $ DoubleQuoted [Plain k]
 
+-- | Inherit the given list of symbols.
 inheritStatic :: [Text] -> Binding e
 inheritStatic names = inherit (map StaticKey names) nullPos
 

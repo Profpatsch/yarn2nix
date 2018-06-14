@@ -1,5 +1,5 @@
 name: yarn2nix
-version: 0.6.0
+version: 0.7.0
 github: Profpatsch/yarn2nix
 license: MIT
 license-file: LICENSE
@@ -40,7 +40,7 @@ dependencies:
   - text == 1.2.*
   - transformers == 0.5.*
   - unordered-containers == 0.2.*
-  - yarn-lock == 0.4.*
+  - yarn-lock == 0.5.*
 
 library:
   source-dirs: src

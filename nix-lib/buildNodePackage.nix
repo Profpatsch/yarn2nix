@@ -1,8 +1,8 @@
 { stdenv, linkNodeDeps, nodejs, yarn2nix }:
-{ name # String
+{ key # { scope: String, name: String }
 , version # String
 , src # Drv
-, nodeBuildInputs # Listof { name : String, drv : Drv }
+, nodeBuildInputs # Listof { key: { scope: String, name: String }, drv : Drv }
 , ... }@args:
 
 # since we skip the build phase, pre and post will not work
@@ -14,9 +14,13 @@ assert (args ? preConfigure || args ? postConfigure) -> args ? configurePhase;
 with stdenv.lib;
 
 let
-  packageName = "${name}-${version}";
+  # TODO: scope should be more structured somehow. :(
+  packageName =
+    if key.scope == ""
+    then "${key.name}-${version}"
+    else "${key.scope}-${key.name}-${version}";
 
-in stdenv.mkDerivation ((removeAttrs args [ "nodeBuildInputs" ]) // {
+in stdenv.mkDerivation ((removeAttrs args [ "key" "nodeBuildInputs" ]) // {
   name = packageName;
   inherit version src;
 

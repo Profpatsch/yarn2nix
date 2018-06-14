@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RecordWildCards, LambdaCase #-}
 {-|
 Description: Misc utils
 -}
@@ -8,4 +8,14 @@ import qualified Yarn.Lock.Types as YLT
 
 -- | Representation of a PackageKey as nix attribute name.
 packageKeyToSymbol :: YLT.PackageKey -> Text
-packageKeyToSymbol (YLT.PackageKey{..}) = name <> "@" <> npmVersionSpec
+packageKeyToSymbol (YLT.PackageKey{..}) =
+  packageKeyNameToSymbol name <> "@" <> npmVersionSpec
+{-# INLINABLE packageKeyToSymbol #-}
+
+-- | Representation of a PackageKeyName as nix attribute name.
+packageKeyNameToSymbol :: YLT.PackageKeyName -> Text
+packageKeyNameToSymbol = \case
+  YLT.SimplePackageKey n -> n
+  YLT.ScopedPackageKey scope n -> "@" <> scope <> "/" <> n
+{-# INLINABLE packageKeyNameToSymbol #-}
+

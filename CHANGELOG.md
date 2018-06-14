@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 All changes are documented in more detail in their respective commit messages.
 
-## [0.7.0] - unpublished
+## [0.7.0] - 2018-06-14
+
+### Added
+
+- Support for [scoped npm](https://docs.npmjs.com/misc/scope) packages
+  - These are used mostly for Typescript annotations, but have been cropping up in other cases as well
+  - The support is first-class and scoped packages are already recognized by the `yarn.lock` parser; as such every corner case should be supported (if not it’s a bug or missed type signature change)
 
 ### Changed
 
 - `nix-lib`
   - `buildNodeDeps` now takes an overlay instead of a path; for the generated files this means `pkgs.callPackage ./npm-deps.nix {}` instead of just `./npm-deps.nix`
+  - Because of scoped package support, the package names are now mostly an attributeset of `{ scope: String, name: String }` where an empty string for `scope` means (360) no scope
+  - One exception is the `key` argument of `_buildNodePackage`, which accepts a string as well if the package is not scoped, to save on bytes in the generated nix deps file
 
 
 ## [0.6.0] - 2018-05-31

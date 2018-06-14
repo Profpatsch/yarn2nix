@@ -18,7 +18,17 @@ import qualified Yarn.Lock.Types as YLT
 
 
 depsToPkgKeys :: NP.Dependencies -> [YLT.PackageKey]
-depsToPkgKeys = map (\(k, v) -> YLT.PackageKey k v) . HML.toList
+depsToPkgKeys = map toPkgKey . HML.toList
+  where
+    toPkgKey (k, v) =
+      YLT.PackageKey (parsePackageKeyName k) v
+
+parsePackageKeyName :: Text -> YLT.PackageKeyName
+parsePackageKeyName k =
+  -- we don’t crash on a “wrong” package key to keep this
+  -- code pure, but assume it’s a simple key instead.
+  maybe (YLT.SimplePackageKey k) identity
+    $ YLT.parsePackageKeyName k
 
 -- | generate a nix expression that translates your package.nix
 --
@@ -47,5 +57,8 @@ genTemplate NP.Package{..} =
     depPkgKeys = depsToPkgKeys (dependencies <> devDependencies)
     pkgDep depsSym pk = mkSym depsSym !!. packageKeyToSymbol pk
     nodeDepsSym = "allDeps"
-    nameStr = mkStrQ [StrQ name]
+    nameStr = mkStrQ [StrQ
+      $ pkgKeyToName $ parsePackageKeyName name]
+    pkgKeyToName (YLT.SimplePackageKey n) = n
+    pkgKeyToName (YLT.ScopedPackageKey s n) = s <> "-" <> n
     may k v = [k $= mkStr (fromMaybe mempty v)]
