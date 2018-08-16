@@ -1,4 +1,4 @@
-with import <nixpkgs> {};
+with import <nixpkgs> { config = {}; overlays = []; };
 (haskellPackages.override {
   overrides = lib.composeExtensions
     (pkgs.callPackage ./nix-lib/old-version-dependencies.nix {})
