@@ -89,7 +89,7 @@ let
           in ''
             echo "linking node dependency ${formatKey dep.key}"
             ${ # we need to create the scope folder, otherwise ln fails
-               lib.optionalString hasScope ''mkdir "${parentfolder}"'' }
+               lib.optionalString hasScope ''mkdir -p "${parentfolder}"'' }
             ln -sT ${dep.drv} "${subfolder}"
             ${yarn2nix}/bin/node-package-tool \
               link-bin \
