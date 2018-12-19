@@ -120,7 +120,7 @@ astToPackage = V.validationToEither . validate
         -- implementing the heuristics of searching for types;
         -- it should of course not lead to false positives
         -- see tests/TestLock.hs
-        $ checkGit <|> checkFile
+        $ checkGit <|> checkFileLocal <|> checkFile
       where
         mToV :: e -> Maybe a -> V.Validation e a
         mToV err = V.eitherToValidation . note err
@@ -137,6 +137,7 @@ astToPackage = V.validationToEither . validate
           [url', hash] -> (url', Just hash)
           _           -> panic "checkRemote: # should only appear exactly once!"
 
+        checkGit :: Maybe T.Remote
         checkGit = do
           resolved <- vToM $ getField text "resolved" fs
           -- either in uid field or after the hash in the “resolved” URL
@@ -149,12 +150,24 @@ astToPackage = V.validationToEither . validate
           pure $ T.GitRemote
             { T.gitRepoUrl = noPrefix "git+" repo , .. }
 
-        -- | ensure the prefix is removed
-        noPrefix :: Text -> Text -> Text
-        noPrefix pref hay = maybe hay identity $ Text.stripPrefix pref hay
+        -- | resolved fields that are prefixed with @"file:"@
+        checkFileLocal :: Maybe T.Remote
+        checkFileLocal = do
+          resolved <- vToM $ getField text "resolved" fs
+          let (file, mayHash) = findUrlHash resolved
+          fileLocalSha1 <- mayHash
+          fileLocalPath <- if "file:" `Text.isPrefixOf` file
+                           then Just $ noPrefix "file:" file
+                           else Nothing
+          pure $ T.FileLocal{..}
 
+        checkFile :: Maybe T.Remote
         checkFile = do
           resolved <- vToM (getField text "resolved" fs)
           let (fileUrl, mayFileSha1) = findUrlHash resolved
           fileSha1 <- mayFileSha1
           pure $ T.FileRemote{..}
+
+        -- | ensure the prefix is removed
+        noPrefix :: Text -> Text -> Text
+        noPrefix pref hay = maybe hay identity $ Text.stripPrefix pref hay

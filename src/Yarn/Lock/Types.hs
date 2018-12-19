@@ -72,4 +72,9 @@ data Remote
   | GitRemote
   { gitRepoUrl  :: Text -- ^ valid git remote URL
   , gitRev      :: Text -- ^ git tree-ish (commit, branch, &c.)
+  }
+  -- this is a bit of an oddidity, but what isn’t
+  | FileLocal
+  { fileLocalPath :: Text -- ^ (relative) path to file on the local machine
+  , fileLocalSha1 :: Text -- ^ sha1 hash of the file (attached to the link)
   } deriving (Eq, Show)

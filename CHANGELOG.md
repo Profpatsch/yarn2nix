@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.6.0] - 2018-12-19
+
+### Added
+
+- Support for local dependencies (`resolved` field starts with `file:`)
+
+### Fixed
+
+- Semigroup is superclass of Monoid
+
 ## [0.5.0] - 2018-06-12
 
 ### Changed

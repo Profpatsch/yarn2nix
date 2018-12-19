@@ -58,6 +58,22 @@ case_fileRemote = do
       a -> assertFailure ("should be FileRemote, is " <> show a)
   astToPackageFailureWith (pure File.UnknownRemoteType) bad
 
+case_fileLocal :: Assertion
+case_fileLocal = do
+  let good = minimalAst $
+        [ ("resolved"
+          , Left $ "file:../extensions/jupyterlab-toc-0.6.0.tgz#393fe") ]
+      bad = minimalAst $
+        [ ("resolved"
+          , Left $ "\"file:some/file/nohash\"") ]
+  astToPackageSuccess good
+    <&> T.remote >>= \case
+      T.FileLocal{..} -> do
+        assertEqual "file path" "../extensions/jupyterlab-toc-0.6.0.tgz" fileLocalPath
+        assertEqual "file sha" "393fe" fileLocalSha1
+      a -> assertFailure ("should be FileLocal, is " <> show a)
+  astToPackageFailureWith (pure File.UnknownRemoteType) bad
+
 case_missingField :: Assertion
 case_missingField = do
   astToPackageFailureWith
