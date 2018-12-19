@@ -81,9 +81,11 @@ data PkgRef
   = PkgRef Text
     -- ^ reference to another package definition (e.g. @^1.2@ points to @1.2@)
   | PkgDefFile (PkgData (Either Text Registry))
-    -- ^ actual definiton of a file package
+    -- ^ actual definition of a file package
+  | PkgDefFileLocal (PkgData Text)
+    -- ^ actual definition of a local package (tar.gz file relative to nix expression)
   | PkgDefGit  (PkgData Git)
-    -- ^ actual definiton of a git package
+    -- ^ actual definition of a git package
 
 -- | Package definition needed for calling the build function.
 data PkgData a = PkgData
@@ -115,6 +117,7 @@ shortcuts = M.fromList
   , (["registries", "yarn"], "y")
   , (["registries", "npm"], "n")
   , (["nodeFilePackage"], "f")
+  , (["nodeFileLocalPackage"], "l")
   , (["nodeGitPackage"], "g")
   , (["identityRegistry"], "ir")
   , (["scopedName"], "sc")
@@ -164,6 +167,8 @@ convertLockfile = M.fromList . foldMap convert . MKM.toList
         YLT.FileRemote{fileUrl} ->
           PkgDefFile $ pkgDataGeneric $ note fileUrl
             $ recognizeRegistry defName fileUrl
+        YLT.FileLocal{fileLocalPath} ->
+          PkgDefFileLocal $ pkgDataGeneric $ fileLocalPath
         YLT.GitRemote{gitRepoUrl, gitRev} ->
           PkgDefGit $ pkgDataGeneric $ Git gitRepoUrl gitRev
                  -- we don’t need another ref indirection
@@ -188,6 +193,7 @@ let
   # We want each package definition to be one line, by putting
   # the boilerplate into these functions for different remotes.
   nodeFilePackage = …
+  nodeFileLocalPackage = …
   nodeGitPackage = …
 
   # an identity function for e.g. git repos or unknown registries
@@ -200,6 +206,7 @@ let
   s = self;
   ir = identityRegistry;
   f = nodeFilePackage;
+  l = nodeFileLocalPackage;
   g = nodeGitPackage;
   y = registries.yarnpkg;
   sc = scopedName;
@@ -214,6 +221,7 @@ in {
   "babel-core@6.24.1" = f "babel-core" "6.24.1" y "a0e457c58ebdbae575c9f8cd75127e93756435d8" [
     s."accepts@~1.3.3"
   ];
+  "local-package@file:../foo.tgz" = l "local-package" "file:../foo.tgz" ../foo.tgz "thehash" []
 }
 @
 -}
@@ -230,6 +238,7 @@ mkPackageSet packages =
     ==> N.mkLets
         (  [ "registries" $= N.mkNonRecSet (fmap (mkRegistry . snd) registries)
            , "nodeFilePackage" $= buildPkgFn
+           , "nodeFileLocalPackage" $= buildPkgLocalFn
            , "nodeGitPackage" $= buildPkgGitFn
            , "identityRegistry" $= NA.multiParam ["url", "_", "_"] "url"
            , "scopedName" $=
@@ -265,6 +274,15 @@ mkPackageSet packages =
         ("fetchurl" @@ N.mkNonRecSet
           [ "url" $= ("registry" @@ "key" @@ "version")
           , inheritStatic ["sha1"] ])
+    -- | Building a 'YLT.FileLocal' package.
+    buildPkgLocalFn :: NExpr
+    buildPkgLocalFn =
+      buildPkgFnGeneric ["path", "sha1"]
+        ("builtins.path" @@ N.mkNonRecSet
+          [ inheritStatic ["path"]
+          -- TODO: use the sha1 here! (does builtins.path only take sha256?)
+          -- , "sha256" $= "sha1"
+          ])
     -- | Building a 'YLT.GitRemote' package.
     buildPkgGitFn :: NExpr
     buildPkgGitFn =
@@ -272,16 +290,7 @@ mkPackageSet packages =
         ("fetchgit" @@ N.mkNonRecSet
           [ inheritStatic ["url", "rev", "sha256"] ])
 
-    mkDefGeneric :: PkgData a -> NSym -> [NExpr] -> NExpr
-    mkDefGeneric PkgData{..} buildFnSym additionalArguments =
-      foldl' (@@) (shorten [buildFnSym])
-        $ [ case pkgDataName of
-              YLT.SimplePackageKey n -> N.mkStr n
-              YLT.ScopedPackageKey s n -> "sc" @@ N.mkStr s @@ N.mkStr n
-          , N.mkStr pkgDataVersion ]
-          <> additionalArguments <>
-          [ N.mkList $ map (N.mkSym selfSym !!.) pkgDataDependencies ]
-
+    -- | Create a package definition.
     mkPkg :: (Text, PkgRef) -> N.Binding NExpr
     mkPkg (key, pkgRef) = key $$= case pkgRef of
       PkgRef t -> N.mkSym selfSym !!. t
@@ -291,9 +300,22 @@ mkPackageSet packages =
                    (\reg -> shorten ["registries", registrySym reg])
                    pkgDataUpstream
           , N.mkStr pkgDataHashSum ]
+      PkgDefFileLocal pd@PkgData{pkgDataUpstream = path, pkgDataHashSum} ->
+        mkDefGeneric pd "nodeFileLocalPackage" [ N.mkPath False (toS path), N.mkStr pkgDataHashSum ]
       PkgDefGit pd@PkgData{pkgDataUpstream = Git{..}, pkgDataHashSum} ->
         mkDefGeneric pd "nodeGitPackage"
           [ N.mkStr gitUrl, N.mkStr gitRev, N.mkStr pkgDataHashSum ]
+
+    -- | The common parts of creating a package definition.
+    mkDefGeneric :: PkgData a -> NSym -> [NExpr] -> NExpr
+    mkDefGeneric PkgData{..} buildFnSym additionalArguments =
+      foldl' (@@) (shorten [buildFnSym])
+        $ [ case pkgDataName of
+              YLT.SimplePackageKey n -> N.mkStr n
+              YLT.ScopedPackageKey s n -> "sc" @@ N.mkStr s @@ N.mkStr n
+          , N.mkStr pkgDataVersion ]
+          <> additionalArguments <>
+          [ N.mkList $ map (N.mkSym selfSym !!.) pkgDataDependencies ]
 
     selfSym :: Text
     selfSym = "s"

@@ -59,6 +59,7 @@ resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup 
     resolve :: YLT.Package -> E.ExceptT Text IO (Resolved YLT.Package)
     resolve pkg = case YLT.remote pkg of
       YLT.FileRemote{..} -> pure $ r fileSha1
+      YLT.FileLocal{..}  -> pure $ r fileLocalSha1
       YLT.GitRemote{..}  -> r <$> fetchFromGit gitRepoUrl gitRev
       where
         r sha = Resolved { hashSum = sha, resolved = pkg }
