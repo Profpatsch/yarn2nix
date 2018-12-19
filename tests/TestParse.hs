@@ -29,16 +29,6 @@ case_startCommentEmptyPackageList = do
       assertBool "only foo"
         (keys == pure (PackageKey (SimplePackageKey "dummy-package") "foo"))
 
--- registryPackage :: Text
--- registryPackage = [text|
---   accepts@1.3.3, accepts@~1.3.3:
---     version "1.3.3"
---     resolved "https://registry.yarnpkg.com/accepts/-/accepts-1.3.3.tgz#c3ca7434938648c3e0d9c1e328dd68b622c284ca"
---     dependencies:
---       mime-types "~2.1.11"
---       negotiator "0.6.1"
---   |]
-
 nonsenseEntry :: Text
 nonsenseEntry = [text|
   foobar@~1.2.3, xyz@hehe:

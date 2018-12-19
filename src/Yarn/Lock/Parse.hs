@@ -47,7 +47,7 @@ type Parser = Parsec Void Text
 --
 -- The actual conversion to semantic structures needs to be done afterwards.
 newtype PackageFields = PackageFields (Map Text (Either Text PackageFields))
-  deriving (Show, Eq, Monoid)
+  deriving (Show, Eq, Semigroup, Monoid)
 
 -- | A parsed 'Package' AST has one or more keys, a position in the original files
 -- and a collection of fields.
