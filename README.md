@@ -101,6 +101,15 @@ Finally, run `nix-build`, and voilà, in `./result/` you find the project with
 all its dependencies correctly linked to their corresponding `node_modules`
 folder, recursively.
 
+## Using private package repository
+
+Since `yarn2nix` uses standard `fetchurl` to download packages,
+it is possible to authenticate by overriding `fetchurl`
+to use the access credentials in `/etc/nix/netrc`.
+
+Refer to the [Enterprise NixOS Wiki article](https://nixos.wiki/wiki/Enterprise)
+for instructions.
+
 ## Development
 
 ```
