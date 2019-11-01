@@ -80,7 +80,7 @@ packageList = MP.many $ (skipMany (comment <|> MP.string "\n")) *> packageEntry
 -- @
 packageEntry :: Parser (YLT.Keyed (SourcePos, PackageFields))
 packageEntry = label "package entry" $ do
-  pos <- getPosition
+  pos <- getSourcePos
   -- A package entry is a non-indented
   (keys, pkgs) <- nonIndented
             -- block that has a header of package keys

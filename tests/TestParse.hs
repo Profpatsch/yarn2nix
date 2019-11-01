@@ -142,7 +142,7 @@ parseSuccess parser string = do
     (Right a) -> pure a
     (Left err) -> do
       _ <- assertFailure ("parse should succeed, but: \n"
-                    <> MP.parseErrorPretty err
+                    <> MP.errorBundlePretty err
                     <> "for input\n" <> toS string <> "\n\"")
       panic "not reached"
 

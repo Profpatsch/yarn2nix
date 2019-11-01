@@ -1,5 +1,5 @@
 name: yarn-lock
-version: 0.6.0
+version: 0.6.1
 github: Profpatsch/yarn-lock
 license: MIT
 license-file: LICENSE
@@ -20,7 +20,7 @@ dependencies:
   - base == 4.*
   - containers
   - text
-  - megaparsec == 6.*
+  - megaparsec == 7.*
   - protolude == 0.2.*
   - either >= 4 && < 6
 

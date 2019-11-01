@@ -81,7 +81,7 @@ prettyLockfileError = \case
 
 -- helpers
 astParse :: FilePath -> Text -> Either LockfileError [Parse.Package]
-astParse fp = first (ParseError . toS . MP.parseErrorPretty)
+astParse fp = first (ParseError . toS . MP.errorBundlePretty)
                 . MP.parse Parse.packageList fp
 
 toPackages :: [Parse.Package] -> Either LockfileError [T.Keyed T.Package]
