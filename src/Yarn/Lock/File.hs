@@ -154,8 +154,7 @@ astToPackage = V.validationToEither . validate
         checkFileLocal :: Maybe T.Remote
         checkFileLocal = do
           resolved <- vToM $ getField text "resolved" fs
-          let (file, mayHash) = findUrlHash resolved
-          fileLocalSha1 <- mayHash
+          let (file, fileLocalSha1) = findUrlHash resolved
           fileLocalPath <- if "file:" `Text.isPrefixOf` file
                            then Just $ noPrefix "file:" file
                            else Nothing
@@ -164,8 +163,7 @@ astToPackage = V.validationToEither . validate
         checkFile :: Maybe T.Remote
         checkFile = do
           resolved <- vToM (getField text "resolved" fs)
-          let (fileUrl, mayFileSha1) = findUrlHash resolved
-          fileSha1 <- mayFileSha1
+          let (fileUrl, fileSha1) = findUrlHash resolved
           pure $ T.FileRemote{..}
 
         -- | ensure the prefix is removed

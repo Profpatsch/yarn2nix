@@ -66,7 +66,7 @@ data Package = Package
 data Remote
   = FileRemote
   { fileUrl     :: Text -- ^ URL to a remote file
-  , fileSha1    :: Text -- ^ sha1 hash of the file (attached to the link)
+  , fileSha1    :: Maybe Text -- ^ sha1 hash of the file (attached to the link)
 
   }
   | GitRemote
@@ -76,5 +76,5 @@ data Remote
   -- this is a bit of an oddidity, but what isn’t
   | FileLocal
   { fileLocalPath :: Text -- ^ (relative) path to file on the local machine
-  , fileLocalSha1 :: Text -- ^ sha1 hash of the file (attached to the link)
+  , fileLocalSha1 :: Maybe Text -- ^ sha1 hash of the file (attached to the link)
   } deriving (Eq, Show)
