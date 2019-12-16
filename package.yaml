@@ -20,7 +20,7 @@ dependencies:
   - base == 4.*
   - containers
   - text
-  - megaparsec == 7.*
+  - megaparsec >= 7 && < 9
   - protolude == 0.2.*
   - either >= 4 && < 6
 
