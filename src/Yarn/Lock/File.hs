@@ -154,17 +154,21 @@ astToPackage = V.validationToEither . validate
         checkFileLocal :: Maybe T.Remote
         checkFileLocal = do
           resolved <- vToM $ getField text "resolved" fs
-          let (file, fileLocalSha1) = findUrlHash resolved
+          let (file, mayHash) = findUrlHash resolved
           fileLocalPath <- if "file:" `Text.isPrefixOf` file
                            then Just $ noPrefix "file:" file
                            else Nothing
-          pure $ T.FileLocal{..}
+          case mayHash of
+            Just hash -> pure (T.FileLocal fileLocalPath hash)
+            Nothing   -> pure (T.FileLocalNoIntegrity fileLocalPath)
 
         checkFile :: Maybe T.Remote
         checkFile = do
           resolved <- vToM (getField text "resolved" fs)
-          let (fileUrl, fileSha1) = findUrlHash resolved
-          pure $ T.FileRemote{..}
+          let (fileUrl, mayHash) = findUrlHash resolved
+          case mayHash of
+            Just hash -> pure (T.FileRemote fileUrl hash)
+            Nothing   -> pure (T.FileRemoteNoIntegrity fileUrl)
 
         -- | ensure the prefix is removed
         noPrefix :: Text -> Text -> Text

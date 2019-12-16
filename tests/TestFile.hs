@@ -51,15 +51,17 @@ case_fileRemote = do
   let sha = "helloimref"
       good = minimalAst $
           [ ("resolved", Left $ "https://gnu.org/stallmanstoe#" <> sha) ]
-      goodNoHash = minimalAst $
+      goodNoIntegrity = minimalAst $
           [ ("resolved", Left $ "https://gnu.org/stallmanstoe") ]
   astToPackageSuccess good
     <&> T.remote >>= \case
-      T.FileRemote{..} -> assertEqual "file sha" (Just sha) fileSha1
+      T.FileRemote{..} -> do
+        assertEqual "remote url" "https://gnu.org/stallmanstoe" fileUrl
+        assertEqual "file sha" sha fileSha1
       a -> assertFailure ("should be FileRemote, is " <> show a)
-  astToPackageSuccess goodNoHash
+  astToPackageSuccess goodNoIntegrity
     <&> T.remote >>= \case
-      T.FileRemote{..} -> assertEqual "file sha" Nothing fileSha1
+      T.FileRemoteNoIntegrity{..} -> assertEqual "remote url" "https://gnu.org/stallmanstoe" fileNoIntegrityUrl
       a -> assertFailure ("should be FileRemote, is " <> show a)
 
 case_fileLocal :: Assertion
@@ -67,20 +69,19 @@ case_fileLocal = do
   let good = minimalAst $
         [ ("resolved"
           , Left $ "file:../extensions/jupyterlab-toc-0.6.0.tgz#393fe") ]
-      goodNoHash = minimalAst $
+      goodNoIntegrity = minimalAst $
         [ ("resolved"
           , Left $ "file:../extensions/jupyterlab-toc-0.6.0.tgz") ]
   astToPackageSuccess good
     <&> T.remote >>= \case
       T.FileLocal{..} -> do
         assertEqual "file path" "../extensions/jupyterlab-toc-0.6.0.tgz" fileLocalPath
-        assertEqual "file sha" (Just "393fe") fileLocalSha1
+        assertEqual "file sha" "393fe" fileLocalSha1
       a -> assertFailure ("should be FileLocal, is " <> show a)
-  astToPackageSuccess goodNoHash
+  astToPackageSuccess goodNoIntegrity
     <&> T.remote >>= \case
-      T.FileLocal{..} -> do
-        assertEqual "file path" "../extensions/jupyterlab-toc-0.6.0.tgz" fileLocalPath
-        assertEqual "file sha" Nothing fileLocalSha1
+      T.FileLocalNoIntegrity{..} -> do
+        assertEqual "file path" "../extensions/jupyterlab-toc-0.6.0.tgz" fileLocalNoIntegrityPath
       a -> assertFailure ("should be FileLocal, is " <> show a)
 
 case_missingField :: Assertion
