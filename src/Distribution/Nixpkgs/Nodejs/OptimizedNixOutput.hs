@@ -78,14 +78,14 @@ data Git = Git
 
 -- | Final package reference used in the generated package list.
 data PkgRef
+  -- | reference to another package definition (e.g. @^1.2@ points to @1.2@)
   = PkgRef Text
-    -- ^ reference to another package definition (e.g. @^1.2@ points to @1.2@)
   | PkgDefFile (PkgData (Either Text Registry))
-    -- ^ actual definition of a file package
+  -- ^ actual definition of a file package
   | PkgDefFileLocal (PkgData Text)
-    -- ^ actual definition of a local package (tar.gz file relative to nix expression)
+  -- ^ actual definition of a local package (tar.gz file relative to nix expression)
   | PkgDefGit  (PkgData Git)
-    -- ^ actual definition of a git package
+  -- ^ actual definition of a git package
 
 -- | Package definition needed for calling the build function.
 data PkgData a = PkgData
