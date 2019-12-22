@@ -14,7 +14,7 @@ import qualified Data.Text.IO as TIO
 import qualified System.Directory as Dir
 
 import qualified Nix.Pretty as NixP
-import Text.PrettyPrint.ANSI.Leijen (putDoc)
+import Data.Text.Prettyprint.Doc.Render.Text (putDoc)
 import qualified Yarn.Lock as YL
 import qualified Yarn.Lock.Types as YLT
 import qualified Yarn.Lock.Helpers as YLH
