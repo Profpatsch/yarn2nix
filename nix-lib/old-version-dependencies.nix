@@ -3,13 +3,13 @@ self: super: {
   yarn-lock =
     super.mkDerivation rec {
       pname = "yarn-lock";
-      version = "0.6.0";
+      version = "0.6.2";
       # src = ../../../haskell/yarn-lock;
       src = pkgs.fetchFromGitHub {
         owner = "Profpatsch";
         repo = "yarn-lock";
         rev = version;
-        sha256 = "00i3vq6gn6pkj46nbiywc1a6c5m96bs03mzqw5mb42236fbgsp62";
+        sha256 = "06171ya075yx88gfx39z6mh1k1al0qaqrarbas5mv6lrky19bdxs";
       };
       license = lib.licenses.mit;
       buildDepends = with self; [ megaparsec protolude tasty-hunit tasty-th either neat-interpolation tasty-quickcheck quickcheck-instances ];

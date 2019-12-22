@@ -171,6 +171,10 @@ convertLockfile = M.fromList . foldMap convert . MKM.toList
           PkgDefFileLocal $ pkgDataGeneric $ fileLocalPath
         YLT.GitRemote{gitRepoUrl, gitRev} ->
           PkgDefGit $ pkgDataGeneric $ Git gitRepoUrl gitRev
+        YLT.FileRemoteNoIntegrity{..} ->
+          panic "programming error, should have thrown an error in ResolveLockfile"
+        YLT.FileLocalNoIntegrity{..} ->
+          panic "programming error, should have thrown an error in ResolveLockfile"
                  -- we don’t need another ref indirection
                  -- if that’s already the name of our def
       refNames = List.delete defSym $ toList $ NE.nub

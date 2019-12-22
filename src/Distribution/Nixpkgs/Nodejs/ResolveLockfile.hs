@@ -61,6 +61,14 @@ resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup 
       YLT.FileRemote{..} -> pure $ r fileSha1
       YLT.FileLocal{..}  -> pure $ r fileLocalSha1
       YLT.GitRemote{..}  -> r <$> fetchFromGit gitRepoUrl gitRev
+      YLT.FileRemoteNoIntegrity{..} -> E.throwE
+        $ "The remote "
+        <> fileNoIntegrityUrl
+        <> " does not specify a sha1 hash in the yarn.lock file, which we don’t support (yet)"
+      YLT.FileLocalNoIntegrity{..} -> E.throwE
+        $ "The local file "
+        <> fileLocalNoIntegrityPath
+        <> " does not specify a sha1 hash in the yarn.lock file, which we don’t support (yet)"
       where
         r sha = Resolved { hashSum = sha, resolved = pkg }
 
