@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 All changes are documented in more detail in their respective commit messages.
 
+## [0.8.0] - 2019-12-22
+
+### Added
+
+- Preliminary support for local packages
+
+  To support local packages (see commit for 0.6.0 in yarn-lock), we have to add a new package function to the nix output.
+
+  For now it will only add the path directly, which has the drawback that the nix expression is now required to be in the right position (for relative paths). It should be changed to be user-defined later (i.e. the user passes a function which takes the string of the local path and returns a derivation to the package tarball).
+
+  We don’t use the tarball hash from the lockfile yet to verify the integrity when importing into the nix store.
+
+### Changed
+
+- Bumped `hnix` to `0.6.*`
+  - Small breaking change, because the pretty print library changed to `prettyprint`.
+- Bumped `yarn-lock` to `0.6.2`
+
+### Fixed
+
+- nix-lib: Allow creating a scoped directory if it exists
+
 ## [0.7.0] - 2018-06-14
 
 ### Added

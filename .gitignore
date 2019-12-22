@@ -1,4 +1,4 @@
-/dist/
+/dist-newstyle/
 /result
 /yarn2nix.cabal
 Setup*
