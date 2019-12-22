@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.6.2] - 2019-12-22
+
+- `megaparsec` `0.8` is compatible as well as `0.7`.
+- Support for local and remote file source remotes without hashes. Some old versions of might have these. `FileRemoteNoIntegrity` and `FileLocalNoIntegrity`.
+
+## [0.6.1] - 2019-11-03
+
+- Update `megaparsec` dependency to `0.7`.
+
 ## [0.6.0] - 2018-12-19
 
 ### Added
