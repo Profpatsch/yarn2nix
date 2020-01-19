@@ -1,4 +1,4 @@
-with import <nixpkgs> {};
+with import ./nixpkgs-pinned.nix {};
 (haskellPackages.override {
   overrides = lib.composeExtensions
     (pkgs.callPackage ./nix-lib/old-version-dependencies.nix {})
