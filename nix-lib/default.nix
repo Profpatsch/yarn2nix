@@ -109,6 +109,46 @@ let
     in
       builtins.filterSource (file: _: ! (hasAnyPrefix file)) path;
 
+  # `callYarnLock` calls `yarn2nix` to generate a nix representation of
+  # a `yarn.lock` file and directly imports it. It uses `yarn2nix`'s
+  # offline mode, so its resolving capabilities are limited, i. e. git
+  # dependencies are not possible.
+  #
+  # Example usage:
+  #
+  # ```
+  # buildNodeDeps (callYarnLock ./yarn.lock {})
+  # ```
+  callYarnLock = yarnLock: { name ? "yarn.lock.nix" }:
+    pkgs.callPackage (pkgs.runCommand name {
+      # faster to build locally, see also note at linkNodeDeps
+      allowSubstitutes = false;
+      preferLocalBuild = true;
+    } ''
+      ${yarn2nix}/bin/yarn2nix --offline ${yarnLock} > $out
+    '') { };
+
+  # `callPackageJson` calls `yarn2nix --template` to generate a
+  # nix representation of a `package.json` and directly imports
+  # it. It returns a function which expects a dependency attrset
+  # like `callYarnLock` generates.
+  #
+  # Example usage:
+  #
+  # ```
+  # let template = callPackageJson ./package.json {};
+  # in buildNodePackage ({ src = ./.; } //
+  #   template (callYarnLock ./yarn.lock {}))
+  # ```
+  callPackageJson = packageJson: { name ? "package.json.nix" }:
+    pkgs.callPackage (pkgs.runCommand name {
+      # faster to build locally, see also note at linkNodeDeps
+      allowSubstitutes = false;
+      preferLocalBuild = true;
+    } ''
+      ${yarn2nix}/bin/yarn2nix --template ${packageJson} > $out
+    '') {};
+
   # format a package key of { scope: String, name: String }
   formatKey = { scope, name }:
     if scope == ""
@@ -117,5 +157,6 @@ let
 
 in {
   inherit buildNodeDeps linkNodeDeps buildNodePackage
-          callTemplate removePrefixes;
+          callTemplate removePrefixes callYarnLock
+          callPackageJson;
 }

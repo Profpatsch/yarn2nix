@@ -19,17 +19,33 @@ let
     version = "1.5.3";
   });
 
-  # convert a package.json to yarn2nix package template
-  template = package-json: pkgs.runCommandLocal "generate-template" {} ''
-    ${yarn2nix}/bin/yarn2nix --template ${package-json} > $out
-    echo "template for ${package-json} is:" >&2
-    cat $out >&2
-  '';
+  # very simple package depending on moment.js
+  readme-example = rec {
+    momentjsVersion = "^2.27.0";
+    yarn-lock = pkgs.writeText "yarn.lock" ''
+      moment@^2.27.0:
+        version "2.27.0"
+        resolved "https://registry.yarnpkg.com/moment/-/moment-2.27.0.tgz#8bff4e3e26a236220dfe3e36de756b6ebaa0105d"
+        integrity sha512-al0MUK7cpIcglMv3YF13qSgdAIqxHTO7brRtaz3DlSULbqfazqkc5kEjNrLDOM7fsjshoFIihnU8snrP7zUvhQ==
+    '';
+    package-json = pkgs.writeText "package.json" (builtins.toJSON {
+      name = "readme-example";
+      version = "0.1.0";
+      dependencies = {
+        moment = momentjsVersion;
+      };
+    });
+    src = pkgs.runCommandLocal "readme-example" {} ''
+      mkdir -p $out
+      cp ${yarn-lock} $out/yarn.lock
+      cp ${package-json} $out/package.json
+    '';
+  };
 
   # test suite
   tests = runTestsuite "yarn2nix" [
     (it "checks the template output"
-      (let tmpl = import (template my-package-json) {} {};
+      (let tmpl = nixLib.callPackageJson my-package-json {} {};
       in [
       # TODO: this is a naïve match, might want to create a better test
       (assertEq "template" tmpl {
@@ -46,6 +62,19 @@ let
         };
       })
     ]))
+    (it "checks the readme example"
+      (let
+        tmpl = nixLib.callPackageJson readme-example.package-json {};
+        deps = nixLib.callYarnLock readme-example.yarn-lock {};
+        pkg  = nixLib.buildNodePackage ({ inherit (readme-example) src; } //
+          tmpl (nixLib.buildNodeDeps deps));
+      in [
+      # TODO we can probably check more here, but this seems like a
+      # good sanity check, since its mostly about building successfully
+      (assertEq "momentjs linked" (builtins.readDir "${pkg}/node_modules") {
+        ".bin" = "directory";
+        "moment" = "symlink";
+      })]))
   ];
 
   # small helper that checks the output of tests
