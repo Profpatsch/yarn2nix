@@ -109,6 +109,40 @@ let
     in
       builtins.filterSource (file: _: ! (hasAnyPrefix file)) path;
 
+  # Build nix expression of dependencies based on given `yarnLock`
+  # and directly `callPackage` it. Using this can avoid the need to
+  # check in a generated nix expression. The resulting attrSet can
+  # be used as input for `buildNodeDeps`:
+  #
+  # ```
+  # buildNodeDeps (buildCallDeps { yarnLock = ./yarn.lock; })
+  # ```
+  buildCallDeps = { name ? "npm-deps.nix", yarnLock }:
+    pkgs.callPackage (pkgs.runCommand name {
+      # faster to build locally, see also note at linkNodeDeps
+      allowSubstitutes = false;
+      preferLocalBuild = true;
+    } ''
+      ${yarn2nix}/bin/yarn2nix ${yarnLock} > $out
+    '') { };
+
+  # Build nix expression containing the package template for a
+  # given `packageJson`, eliminating the need to check in an
+  # automatically generated file. Could be used like this:
+  #
+  # ```
+  # callTemplate (buildTemplate { packageJson = ./package.json; })
+  #              (buildNodeDeps (buildCallDeps { yarnLock = ./yarn.lock; }))
+  # ```
+  buildTemplate = { name ? "template.nix", packageJson }:
+    pkgs.runCommand name {
+      # faster to build locally, see also note at linkNodeDeps
+      allowSubstitutes = false;
+      preferLocalBuild = true;
+    } ''
+      ${yarn2nix}/bin/yarn2nix --template ${packageJson} > $out
+    '';
+
   # format a package key of { scope: String, name: String }
   formatKey = { scope, name }:
     if scope == ""
@@ -117,5 +151,6 @@ let
 
 in {
   inherit buildNodeDeps linkNodeDeps buildNodePackage
-          callTemplate removePrefixes;
+          callTemplate removePrefixes buildCallDeps
+          buildTemplate;
 }
