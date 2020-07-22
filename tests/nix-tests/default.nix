@@ -34,7 +34,10 @@ let
       in [
       # TODO: this is a naïve match, might want to create a better test
       (assertEq "template" tmpl {
-        name = "my-package";
+        key = {
+          name = "my-package";
+          scope = "";
+        };
         version = "1.5.3";
         nodeBuildInputs = [];
         meta = {
