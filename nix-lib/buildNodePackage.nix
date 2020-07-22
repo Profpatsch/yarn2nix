@@ -1,8 +1,11 @@
-{ stdenv, linkNodeDeps, nodejs, yarn2nix }:
+{ stdenv, linkNodeDeps, nodejs, yarn2nix
+, callTemplate, buildTemplate, buildNodeDeps, buildCallDeps }:
 { key # { scope: String, name: String }
 , version # String
 , src # Drv
-, nodeBuildInputs # Listof { key: { scope: String, name: String }, drv : Drv }
+, nodeBuildInputs ? null # Listof { key: { scope: String, name: String }, drv : Drv }
+, yarnLock ? null
+, packageJson ? null
 , ... }@args:
 
 # since we skip the build phase, pre and post will not work
@@ -10,6 +13,8 @@
 assert (args ? preBuild || args ? postBuild) -> args ? buildPhase;
 # same for configurePhase
 assert (args ? preConfigure || args ? postConfigure) -> args ? configurePhase;
+
+assert nodeBuildInputs == null -> (yarnLock != null && packageJson != null);
 
 with stdenv.lib;
 
@@ -19,6 +24,15 @@ let
     if key.scope == ""
     then "${key.name}-${version}"
     else "${key.scope}-${key.name}-${version}";
+  # TODO take name and version from here if missing
+  autoTemplate =
+    callTemplate
+      (buildTemplate { inherit packageJson; })
+      (buildNodeDeps (buildCallDeps { inherit yarnLock; }));
+  nodeDeps =
+    if nodeBuildInputs != null
+    then nodeBuildInputs
+    else autoTemplate.nodeBuildInputs;
 
 in stdenv.mkDerivation ((removeAttrs args [ "key" "nodeBuildInputs" ]) // {
   name = packageName;
@@ -46,12 +60,12 @@ in stdenv.mkDerivation ((removeAttrs args [ "key" "nodeBuildInputs" ]) // {
       --package $out
 
     # then a node_modules folder is created for all its dependencies
-    ${if nodeBuildInputs != []
+    ${if nodeDeps != []
       then ''
         rm -rf $out/node_modules
         ln -sT "${linkNodeDeps {
             name = packageName;
-            dependencies = nodeBuildInputs;
+            dependencies = nodeDeps;
           }}" $out/node_modules
       '' else ""}
 

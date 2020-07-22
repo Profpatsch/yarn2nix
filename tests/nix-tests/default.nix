@@ -16,4 +16,5 @@ in {
   testGeneration = call ./test-generation.nix;
   testOverriding = call ./test-overriding.nix;
   testGeneratedSanity = call ./test-generated-sanity.nix;
+  testAutoNodePackage = call ./test-auto-node-package.nix;
 }
