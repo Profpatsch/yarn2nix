@@ -1,7 +1,7 @@
 { stdenv, linkNodeDeps, nodejs, yarn2nix
 , callTemplate, buildTemplate, buildNodeDeps, buildCallDeps }:
-{ key # { scope: String, name: String }
-, version # String
+{ key ? null # { scope: String, name: String }
+, version ? null # String
 , src # Drv
 , nodeBuildInputs ? null # Listof { key: { scope: String, name: String }, drv : Drv }
 , yarnLock ? null
@@ -14,21 +14,22 @@ assert (args ? preBuild || args ? postBuild) -> args ? buildPhase;
 # same for configurePhase
 assert (args ? preConfigure || args ? postConfigure) -> args ? configurePhase;
 
-assert nodeBuildInputs == null -> (yarnLock != null && packageJson != null);
+assert (nodeBuildInputs == null || key == null || version == null) -> (yarnLock != null && packageJson != null);
 
 with stdenv.lib;
 
 let
-  # TODO: scope should be more structured somehow. :(
-  packageName =
-    if key.scope == ""
-    then "${key.name}-${version}"
-    else "${key.scope}-${key.name}-${version}";
-  # TODO take name and version from here if missing
   autoTemplate =
     callTemplate
       (buildTemplate { inherit packageJson; })
       (buildNodeDeps (buildCallDeps { inherit yarnLock; }));
+  packageVersion = if version == null then autoTemplate.version else version;
+  # TODO: scope should be more structured somehow. :(
+  packageName =
+    let k = if key == null then autoTemplate.key else key;
+    in if k.scope == ""
+         then "${k.name}-${packageVersion}"
+         else "${k.scope}-${k.name}-${packageVersion}";
   nodeDeps =
     if nodeBuildInputs != null
     then nodeBuildInputs
@@ -36,7 +37,8 @@ let
 
 in stdenv.mkDerivation ((removeAttrs args [ "key" "nodeBuildInputs" ]) // {
   name = packageName;
-  inherit version src;
+  version = packageVersion;
+  inherit src;
 
   buildInputs = [ nodejs ];
 
