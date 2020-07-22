@@ -39,7 +39,7 @@ genTemplate NP.Package{..} =
   simpleParamSet []
   ==> Param nodeDepsSym
   ==> (mkNonRecSet
-        [ "name" $= nameStr
+        [ "key" $= packageKeyToSet (parsePackageKeyName name)
         , "version" $= mkStr version
         , "nodeBuildInputs"  $= (letE "a" (mkSym nodeDepsSym)
                                   $ mkList (map (pkgDep "a") depPkgKeys))
@@ -57,8 +57,10 @@ genTemplate NP.Package{..} =
     depPkgKeys = depsToPkgKeys (dependencies <> devDependencies)
     pkgDep depsSym pk = mkSym depsSym !!. packageKeyToSymbol pk
     nodeDepsSym = "allDeps"
-    nameStr = mkStrQ [StrQ
-      $ pkgKeyToName $ parsePackageKeyName name]
-    pkgKeyToName (YLT.SimplePackageKey n) = n
-    pkgKeyToName (YLT.ScopedPackageKey s n) = s <> "-" <> n
+    packageKeyToSet (YLT.SimplePackageKey n) =
+      packageKeyToSet $ YLT.ScopedPackageKey "" n
+    packageKeyToSet (YLT.ScopedPackageKey s n) = mkNonRecSet $
+      [ bindTo "name"  $ mkStrQ [ StrQ n ]
+      , bindTo "scope" $ mkStrQ [ StrQ s ]
+      ]
     may k v = [k $= mkStr (fromMaybe mempty v)]
