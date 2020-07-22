@@ -1,4 +1,4 @@
-{ nixpkgsPath ? <nixpkgs>
+{ nixpkgsPath ? ../../nixpkgs-pinned.nix
 , nixLibPath ? ../../nix-lib
 , yarn2nix ? import ../../. { inherit nixpkgsPath; }
 }:
