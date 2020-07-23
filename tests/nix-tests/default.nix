@@ -8,6 +8,12 @@ let
     inherit yarn2nix;
   };
 
+  inherit (import vendor/runTestsuite.nix { inherit pkgs; })
+    runTestsuite
+    it
+    assertEq
+    ;
+
 
 in {
   testOverriding = import ./test-overriding.nix {
