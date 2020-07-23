@@ -22,8 +22,16 @@
                     '';
                   });
               in oldpkgs.haskell.lib.overrideCabal pkg (old: {
-                src = nix-lib.removePrefixes
-                  [ "nix-lib" "dist" "result" "tests/nix-tests" ] ./.;
+                # TODO: use positive filter
+                src = nix-lib.removePrefixes [
+                  "nix-lib"
+                  "dist"
+                  "result"
+                  "tests/nix-tests"
+                  ".git"
+                  ".github"
+                  "default.nix"
+                ] ./.;
               });
           });
       };
