@@ -8,11 +8,9 @@ let
     inherit yarn2nix;
   };
 
-  call = p: import p {
-    inherit pkgs nixLib yarn2nix;
-  };
 
 in {
-  testGeneration = call ./test-generation.nix;
-  testOverriding = call ./test-overriding.nix;
+  testOverriding = import ./test-overriding.nix {
+    inherit pkgs nixLib yarn2nix;
+  };
 }
