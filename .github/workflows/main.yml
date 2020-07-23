@@ -31,4 +31,4 @@ jobs:
 
     # Runs a single command using the runners shell
     - name: Build nix-tests
-      run: nix-build tests/nix-tests/default.nix
+      run: env NIX_PATH= nix-build tests/nix-tests/default.nix
