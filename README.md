@@ -81,20 +81,19 @@ Then use the library to assemble the generated files in a `default.nix`:
 
 ```nix
 let
-  nixpkgsPath = <nixpkgs>;
+  nixpkgsPath = /path/to/yarn2nix/nixpkgs-pinned.nix;
   pkgs = import nixpkgsPath {};
-  nixLib = pkgs.callPackage /path/to/yarn2nix/nix-lib {
-    # WARNING (TODO): for now you need to use this checked out yarn2nix
-    # because the upstream package (in haskellPackages) might have
-    # broken dependencies (yarn-lock and yarn2nix are not in stackage)
-    yarn2nix = import /path/to/yarn2nix { inherit nixpkgsPath; };
+  nixLib = pkgs.callPackage ../yarn2nix/nix-lib {
+    # WARNING (TODO): for yarn2nix is built with a pinned
+    # version of nixpkgs to prevent breakage
+    yarn2nix = import ../yarn2nix { inherit nixpkgsPath; };
   };
 
 in
   nixLib.buildNodePackage
     ( { src = nixLib.removePrefixes [ "node_modules" ] ./.; } //
       nixLib.callTemplate ./npm-package.nix
-        (nixLib.buildNodeDeps (pkgs.callPackage ./npm-deps.nix {}))
+        (nixLib.buildNodeDeps (pkgs.callPackage ./npm-deps.nix {})))
 ```
 
 Finally, run `nix-build`, and voilà, in `./result/` you find the project with
