@@ -24,6 +24,7 @@ import qualified System.FilePath as FP
 import Data.Aeson ((.:), (.:?), (.!=))
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as AT
+import qualified Data.Vector as V
 
 -- | npm `package.json`. Not complete.
 --
@@ -98,10 +99,32 @@ instance A.FromJSON LoggingPackage where
     bin             <- parseBin name v
     man             <- l $ parseMan name v
     license         <- tryWarn "license" Nothing
-    dependencies    <- l $ v .:? "dependencies" .!= mempty
-    devDependencies <- l $ v .:? "devDependencies" .!= mempty
+    dependencies    <- parseDependencies v "dependencies"
+    devDependencies <- parseDependencies v "devDependencies"
     pure Package{..}
     where
+
+      parseDependencies :: AT.Object -> Text -> Warn Dependencies
+      parseDependencies v field =
+        let def = mempty
+        in  lift (v .:? field .!= def) <|>
+           (lift (v .:  field) >>= \val ->
+              case val of
+                -- non empty arrays cause an error
+                AT.Array a ->
+                  if V.null a
+                    then putWarning def
+                      (WrongType { wrongTypeField   = field
+                                 , wrongTypeDefault = Just (show def) })
+                    else fail $ "\"" ++ T.unpack field
+                      ++ "\" is a non empty array instead of a JSON object"
+                -- if we get an object here, it's malformed
+                AT.Object _ -> fail
+                  $ "Could not parse object in \"" ++ T.unpack field ++ "\""
+                -- everything else defaults to mempty and generates a warning
+                _ -> putWarning def
+                       (WrongType { wrongTypeField   = field
+                                  , wrongTypeDefault = Just (show def) }))
 
       parseMapText :: Text -> HML.HashMap Text AT.Value
                    -> Warn (HML.HashMap Text Text)
