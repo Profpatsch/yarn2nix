@@ -25,33 +25,34 @@ Probably a few more.
 
 ## Example Output
 
-The [HackMD](https://github.com/hackmdio/hackmd) project is an elaborate npm package with hundreds of
-dependencies. `yarn2nix` flawlessly parses the current (2017-12) `yarn.lock`
+The [CodiMD server](https://github.com/codimd/server) is an elaborate npm package with hundreds of
+dependencies. `yarn2nix` flawlessly parses the current (2020-07) `yarn.lock`
 file distributed with the project, including resolving their manual git forks of
 multiple npm packages:
 
 ```
-dist/build/yarn2nix/yarn2nix ~/tmp/hackmd/yarn.lock | wc
-   5306   17068  280246
-cat ~/tmp/hackmd/yarn.lock | wc
-   7667   11307  266652
+$ yarn2nix ~/tmp/server/yarn.lock | wc
+   7320   22701  399111
+$ wc ~/tmp/server/yarn.lock
+ 11938  18615 500078 /home/lukas/tmp/server/yarn.lock
 ```
 
 The output of this conversion [can be seen
-here](https://gist.github.com/Profpatsch/9e50d25faf5a5c4269566e9b7d89199b). Also
+here](https://gist.github.com/sternenseemann/0c253305350b2406e38c700b840869f2). Also
 note that [git dependencies are resolved
-correctly](https://gist.github.com/Profpatsch/9e50d25faf5a5c4269566e9b7d89199b#file-hackmd-dependencies-nix-L1291).
+correctly](https://gist.github.com/sternenseemann/0c253305350b2406e38c700b840869f2#file-codimd-dependencies-nix-L2086-L2087).
 
 Pushing it through the provided [library of nix
-functions][nix-lib], we get a complete build of HackMD
+functions][nix-lib], we get a complete build of CodiMD's
 dependencies, using the project template (generated with `--template`), we also
-build HackMD. Included executables will be in `node_modules/.bin` as expected and
+build the CodiMD server. Included executables will be in `node_modules/.bin` as expected and
 correctly link to their respective library paths in the nix store, for example:
 
 ```
- ls /nix/store/2jc8b4q9i2cvx7pamv5r8md45prrvx4f-hackmd-0.5.1-0.5.1/node_modules/.bin/markdown-it --help
-Usage: ls [OPTION]... [FILE]...
-List information about the FILEs (the current directory by default).
+$ /nix/store/zs9jk7yhdxsasn26m0903fq89cmyllzv-CodiMD-1.6.0/node_modules/.bin/markdown-it -v
+10.0.0
+$ readlink /nix/store/zs9jk7yhdxsasn26m0903fq89cmyllzv-CodiMD-1.6.0/node_modules/.bin/markdown-it
+/nix/store/bgas2l5izznq1b61a3jyf3gpb73x8chn-markdown-it-10.0.0/bin/markdown-it.js
 ```
 
 [nix-lib]: ./nix-lib/default.nix
