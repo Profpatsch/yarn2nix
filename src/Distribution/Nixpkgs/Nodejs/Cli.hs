@@ -26,17 +26,24 @@ import qualified Distribution.Nodejs.Package as NP
 
 usage :: Text
 usage = mconcat $ intersperse "\n"
-  [ "yarn2nix [path/to/yarn.lock]"
+  [ "yarn2nix [--offline] [path/to/yarn.lock]"
+  , ""
+  , "  Convert a `yarn.lock` into a synonymous nix expression."
+  , "  If no path is given, search for `./yarn.lock`."
+  , "  If --offline is given, abort if figuring out a hash"
+  , "  requires network access."
+  , ""
   , "yarn2nix --template [path/to/package.json]"
   , ""
-  , "Convert a `yarn.lock` into a synonymous nix expression."
-  , "If no path is given, search for `./yarn.lock`."
-  , "In the second invocation generate a template for your `package.json`."
+  , "  Generate a package template nix-expression for your `package.json`."
   ]
 
-data Mode = Yarn | Node
+data Mode
+  = Node
+  | Yarn Res.ResolverConfig
+
 fileFor :: Mode -> Text
-fileFor Yarn = "yarn.lock"
+fileFor (Yarn _) = "yarn.lock"
 fileFor Node = "package.json"
 
 -- | Main entry point for @yarn2nix@.
@@ -44,7 +51,9 @@ cli :: [Text] -> IO ()
 cli = \case
   ["--help"] -> putText usage
   ("--template":xs) -> fileLogic Node xs
-  xs -> fileLogic Yarn xs
+  ("--offline":xs) ->
+    fileLogic (Yarn (Res.defResolverConfig { Res.resolveOffline = True })) xs
+  xs -> fileLogic (Yarn Res.defResolverConfig) xs
   where
     fileLogic :: Mode -> [Text] -> IO ()
     fileLogic mode = \case
@@ -56,17 +65,17 @@ cli = \case
       [path] -> parseFile mode (toS path)
       _ -> dieWithUsage ""
     parseFile :: Mode -> FilePath -> IO ()
-    parseFile Yarn = parseYarn
+    parseFile (Yarn cfg) = parseYarn cfg
     parseFile Node = parseNode
-    parseYarn :: FilePath -> IO ()
-    parseYarn path = do
+    parseYarn :: Res.ResolverConfig -> FilePath -> IO ()
+    parseYarn cfg path = do
       let pathT = toS path
       fc <- readFile path
         `catch` \e
           -> do dieWithUsage ("Unable to open " <> pathT <> ":\n" <> show (e :: IOException))
                 pure ""
       case YL.parse path fc of
-        Right yarnfile  -> toStdout yarnfile
+        Right yarnfile  -> toStdout cfg yarnfile
         Left err -> die' ("Could not parse " <> pathT <> ":\n" <> show err)
     parseNode :: FilePath -> IO ()
     parseNode path = do
@@ -83,14 +92,14 @@ dieWithUsage err = die' (err <> "\n" <> usage)
 
 
 -- TODO refactor
-toStdout :: YLT.Lockfile -> IO ()
-toStdout lf = do
+toStdout :: Res.ResolverConfig -> YLT.Lockfile -> IO ()
+toStdout cfg lf = do
   ch <- newChan
   -- thrd <- forkIO $ forever $ do
   --   readChan ch >>= \case
   --     FileRemote{..} -> pass
   --     GitRemote{..} -> print $ "Downloading " <> gitRepoUrl
-  lf' <- Res.resolveLockfileStatus ch (YLH.decycle lf) >>= \case
+  lf' <- Res.resolveLockfileStatus cfg ch (YLH.decycle lf) >>= \case
     Left err -> die' (T.intercalate "\n" $ toList err)
     Right res -> pure res
   -- killThread thrd
