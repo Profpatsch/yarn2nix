@@ -8,6 +8,8 @@ Resolving a 'YLT.Lockfile' and generating all necessary data (e.g. hashes), so t
 module Distribution.Nixpkgs.Nodejs.ResolveLockfile
 ( resolveLockfileStatus
 , Resolved(..), ResolvedLockfile
+, ResolverConfig (..)
+, defResolverConfig
 ) where
 
 import Protolude
@@ -29,6 +31,16 @@ nixPrefetchGitPath = "nix-prefetch-git"
 maxFetchers :: Int
 maxFetchers = 5
 
+data ResolverConfig
+  = ResolverConfig
+  { resolveOffline :: Bool -- ^ If @True@, 'resolveLockfileStatus' will throw an
+                           --   error in case resolving a hash requires network
+                           --   access (for when it started in a nix build)
+  }
+
+defResolverConfig :: ResolverConfig
+defResolverConfig = ResolverConfig False
+
 -- | A thing whose hash is already known (“resolved”).
 --
 -- Only packages with known hashes are truly “locked”.
@@ -41,9 +53,9 @@ data Resolved a = Resolved
 type ResolvedLockfile = MKM.MKMap YLT.PackageKey (Resolved YLT.Package)
 
 -- | Resolve all packages by downloading their sources if necessary.
-resolveLockfileStatus :: (Chan YLT.Remote) -> YLT.Lockfile
+resolveLockfileStatus :: ResolverConfig -> (Chan YLT.Remote) -> YLT.Lockfile
                       -> IO (Either (NE.NonEmpty Text) ResolvedLockfile)
-resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup -> do
+resolveLockfileStatus cfg msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup -> do
   job <- STM.atomically $ Async.mapReduce taskGroup
            $ fmap (\(ks, pkg) -> (:[]) <$> (E.runExceptT $ do
                         liftIO $ writeChan msgChan (YLT.remote pkg)
@@ -60,7 +72,11 @@ resolveLockfileStatus msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup 
     resolve pkg = case YLT.remote pkg of
       YLT.FileRemote{..} -> pure $ r fileSha1
       YLT.FileLocal{..}  -> pure $ r fileLocalSha1
-      YLT.GitRemote{..}  -> r <$> fetchFromGit gitRepoUrl gitRev
+      YLT.GitRemote{..}  -> if resolveOffline cfg
+                              then E.throwE $ "Refusing to resolve \"git+"
+                              <> gitRepoUrl <> "#" <> gitRev
+                              <> "\" because --offline is set"
+                              else r <$> fetchFromGit gitRepoUrl gitRev
       YLT.FileRemoteNoIntegrity{..} -> E.throwE
         $ "The remote "
         <> fileNoIntegrityUrl
