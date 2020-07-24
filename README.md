@@ -83,10 +83,10 @@ Then use the library to assemble the generated files in a `default.nix`:
 let
   nixpkgsPath = /path/to/yarn2nix/nixpkgs-pinned.nix;
   pkgs = import nixpkgsPath {};
-  nixLib = pkgs.callPackage ../yarn2nix/nix-lib {
-    # WARNING (TODO): for yarn2nix is built with a pinned
+  nixLib = pkgs.callPackage /path/to/yarn2nix/nix-lib {
+    # WARNING (TODO): for now yarn2nix is built with a pinned
     # version of nixpkgs to prevent breakage
-    yarn2nix = import ../yarn2nix { inherit nixpkgsPath; };
+    yarn2nix = import /path/to/yarn2nix { inherit nixpkgsPath; };
   };
 
 in
