@@ -19,23 +19,28 @@ baseAnd fields = A.Object $ HML.fromList $
   , ("version", "1.0.2")
   ] <> fields
 
+parseWithWarningsZoom :: (Eq a, Show a)
+                      => Text -> A.Value -> (NP.Package -> a) -> a
+                      -> ([NP.Warning] -> Assertion)
+                      -> Assertion
+parseWithWarningsZoom name got zoom want warningPred =
+  NP.unLoggingPackage <$> parseSuccess got
+  >>= \(val, warnings) -> do
+          assertEqual (toS name) want (zoom val)
+          warningPred warnings
+
+parseZoom :: (Eq a, Show a)
+          => Text -> A.Value -> (NP.Package -> a) -> a
+          -> Assertion
+parseZoom name got zoom want =
+  parseWithWarningsZoom name got zoom want (const $ pure ())
+
+hasWarning :: (NP.Warning -> Bool) -> [NP.Warning] -> Assertion
+hasWarning warningPred = assertBool "no such warning!" . any warningPred
+
 case_binPaths :: Assertion
 case_binPaths = do
   let
-    parseWithWarningsZoom :: (Eq a, Show a)
-                          => Text -> A.Value -> (NP.Package -> a) -> a
-                          -> ([NP.Warning] -> Assertion)
-                          -> Assertion
-    parseWithWarningsZoom name got zoom want warningPred =
-      NP.unLoggingPackage <$> parseSuccess got
-      >>= \(val, warnings) -> do
-              assertEqual (toS name) want (zoom val)
-              warningPred warnings
-    parseZoom name got zoom want =
-      parseWithWarningsZoom name got zoom want (const $ pure ())
-
-    hasWarning :: (NP.Warning -> Bool) -> [NP.Warning] -> Assertion
-    hasWarning warningPred = assertBool "no such warning!" . any warningPred
     wrongType field def = \case
       (NP.WrongType f d) -> field == f && def == d
       _ -> False
@@ -87,7 +92,7 @@ parseSuccess :: (A.FromJSON a) => A.Value -> IO a
 parseSuccess v = case A.fromJSON v of
   (AT.Error err) -> assertFailure err >> panic "not reached"
   (AT.Success a) -> pure a
-  
+
 -- parseFailure :: Show a => (A.Value -> AT.Parser a) -> A.Value -> IO ()
 -- parseFailure p v = case AT.parse p v of
 --   (AT.Error _) -> pass
