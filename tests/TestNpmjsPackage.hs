@@ -35,19 +35,30 @@ parseZoom :: (Eq a, Show a)
 parseZoom name got zoom want =
   parseWithWarningsZoom name got zoom want (const $ pure ())
 
-hasWarning :: (NP.Warning -> Bool) -> [NP.Warning] -> Assertion
-hasWarning warningPred = assertBool "no such warning!" . any warningPred
+data WarningType
+  = SomePlainWarning
+  | ExactWrongType
+    { wrongTypeField :: Text
+    , wrongTypeDefault :: Maybe Text
+    }
+  deriving (Show)
+
+hasWarning :: WarningType -> [NP.Warning] -> Assertion
+hasWarning t = assertBool ("no such warning: " <> show t)
+               . any (checkWarningType t)
+
+checkWarningType :: WarningType -> NP.Warning -> Bool
+checkWarningType tp w = case (tp, w) of
+  (SomePlainWarning, NP.PlainWarning _) -> True
+  ( ExactWrongType { wrongTypeField = ft
+                   , wrongTypeDefault = deft },
+    NP.WrongType { NP.wrongTypeField = f
+                 , NP.wrongTypeDefault = def })
+    -> ft == f && deft == def
+  (_, _) -> False
 
 case_binPaths :: Assertion
 case_binPaths = do
-  let
-    wrongType field def = \case
-      (NP.WrongType f d) -> field == f && def == d
-      _ -> False
-    plainWarning = \case
-      (NP.PlainWarning _) -> True
-      _ -> False
-
   parseZoom ".bin exists with files"
             (baseAnd [ ("bin", "./abc") ])
             NP.bin
@@ -73,7 +84,7 @@ case_binPaths = do
                                      [ ("bin", "foo") ]) ])
                         NP.bin
                         (NP.BinFiles mempty)
-                        (hasWarning plainWarning)
+                        (hasWarning SomePlainWarning)
 
   parseZoom "neither .bin nor .directories.bin exis"
             (baseAnd [])
@@ -86,7 +97,7 @@ case_binPaths = do
                                    , ("bar", "imascript") ]) ])
                         NP.scripts
                         (HML.fromList [ ("bar", "imascript") ])
-                        (hasWarning (wrongType "scripts.foo" Nothing))
+                        (hasWarning (ExactWrongType "scripts.foo" Nothing))
 
 parseSuccess :: (A.FromJSON a) => A.Value -> IO a
 parseSuccess v = case A.fromJSON v of
