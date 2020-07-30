@@ -2,10 +2,12 @@
 
 let
   pkgs = import nixpkgsPath {};
+  lib = pkgs.lib;
   nix-lib = pkgs.callPackage ./nix-lib {};
+  exactSource = import ./nix-lib/exact-source.nix;
 
   haskellPackages = pkgs.haskellPackages.override {
-    overrides = pkgs.lib.composeExtensions
+    overrides = lib.composeExtensions
       (pkgs.callPackage ./nix-lib/old-version-dependencies.nix {})
       (self: super: {
         yarn2nix =
@@ -14,7 +16,7 @@ let
               (self.callPackage ./yarn2nix.nix {})
               (old: {
                 prePatch = old.prePatch or "" + ''
-                  ${pkgs.lib.getBin self.hpack}/bin/hpack
+                  ${lib.getBin self.hpack}/bin/hpack
                   # we depend on the git prefetcher
                   substituteInPlace \
                     src/Distribution/Nixpkgs/Nodejs/ResolveLockfile.hs \
@@ -23,15 +25,20 @@ let
                 '';
               });
           in pkgs.haskell.lib.overrideCabal pkg (old: {
-            src = nix-lib.removePrefixes [
-              "nix-lib"
-              "dist"
-              "result"
-              "tests/nix-tests"
-              ".git"
-              ".github"
-              "default.nix"
-            ] ./.;
+            src = builtins.filterSource
+              (path: type:
+                 if lib.any (p: lib.hasPrefix (toString ./. + "/" + p) path) [
+                   "package.yaml"
+                   "LICENSE"
+                   "src"
+                   "NodePackageTool.hs"
+                   "Main.hs"
+                   "Test.hs"
+                   "tests"
+                 ]
+                 then true
+                 else false
+              ) ./.;
           });
       });
    };
