@@ -1,12 +1,16 @@
 # yarn2nix
 
 ```
-yarn2nix [path/to/yarn.lock]
+yarn2nix [--offline] [path/to/yarn.lock]
+
+  Convert a `yarn.lock` into a synonymous nix expression.
+  If no path is given, search for `./yarn.lock`.
+  If --offline is given, abort if figuring out a hash
+  requires network access.
+
 yarn2nix --template [path/to/package.json]
 
-Convert a `yarn.lock` into a synonymous nix expression.
-If no path is given, search for `./yarn.lock`.
-In the second invocation generate a template for your `package.json`.
+  Generate a package template nix-expression for your `package.json`.
 ```
 
 ## Features
