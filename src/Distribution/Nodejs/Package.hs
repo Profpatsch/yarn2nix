@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, DeriveGeneric, OverloadedStrings, RecordWildCards, LambdaCase #-}
+{-# LANGUAGE NoImplicitPrelude, DeriveGeneric, OverloadedStrings, RecordWildCards, LambdaCase, TypeApplications #-}
 {-|
 Description: Parse and make sense of npm’s @package.json@ project files
 
@@ -98,10 +98,32 @@ instance A.FromJSON LoggingPackage where
     bin             <- parseBin name v
     man             <- l $ parseMan name v
     license         <- tryWarn "license" Nothing
-    dependencies    <- l $ v .:? "dependencies" .!= mempty
-    devDependencies <- l $ v .:? "devDependencies" .!= mempty
+    dependencies    <- tryWarn "dependencies" (AT.Object mempty)
+                         >>= parseDependencies "dependencies"
+    devDependencies <- tryWarn "devDependencies" (AT.Object mempty)
+                         >>= parseDependencies "devDependencies"
     pure Package{..}
     where
+
+      parseDependencies ::  Text -> AT.Value -> Warn Dependencies
+      parseDependencies field v =
+        let
+          warn = putWarning mempty
+              $ WrongType
+              { wrongTypeField   = field
+              , wrongTypeDefault = Just (show (mempty :: Dependencies)) }
+        in case v of
+          AT.Array a ->
+            -- we interpret empty arrays as just confused users
+            if null a then warn
+            -- however if the user uses a non-empty array,
+            -- they probably mean something which we don’t know how to deal with.
+            else fail
+              $ "\"" ++ T.unpack field ++ "\" is a non empty array instead of a JSON object"
+          -- if we get an object here, it's malformed
+          AT.Object deps -> lift $ traverse (A.parseJSON @Text) deps
+          -- everything else defaults to mempty and generates a warning
+          _ -> warn
 
       parseMapText :: Text -> HML.HashMap Text AT.Value
                    -> Warn (HML.HashMap Text Text)
