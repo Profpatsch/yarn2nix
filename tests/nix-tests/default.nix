@@ -1,9 +1,8 @@
-{ nixpkgsPath ? ../../nixpkgs-pinned.nix
+{ pkgs ? import ../../nixpkgs-pinned.nix {}
 , nixLibPath ? ../../nix-lib
-, yarn2nix ? import ../../. { inherit nixpkgsPath; }
+, yarn2nix ? import ../../. { inherit pkgs; }
 }:
 let
-  pkgs = import nixpkgsPath {};
   nixLib = pkgs.callPackage nixLibPath {
     inherit yarn2nix;
   };
