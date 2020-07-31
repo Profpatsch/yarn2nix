@@ -19,7 +19,7 @@ let
                   substituteInPlace \
                     src/Distribution/Nixpkgs/Nodejs/ResolveLockfile.hs \
                     --replace '"nix-prefetch-git"' \
-                      '"${pkgs.nix-prefetch-scripts}/bin/nix-prefetch-git"'
+                      '"${pkgs.nix-prefetch-git.override { git = pkgs.gitMinimal; }}/bin/nix-prefetch-git"'
                 '';
               });
           in pkgs.haskell.lib.overrideCabal pkg (old: {
