@@ -1,7 +1,6 @@
-{ nixpkgsPath ? ./nixpkgs-pinned.nix }:
+{ pkgs ? import ./nixpkgs-pinned.nix {} }:
 
 let
-  pkgs = import nixpkgsPath {};
   lib = pkgs.lib;
 
   haskellPackages = pkgs.haskellPackages.override {
@@ -75,6 +74,11 @@ let
         }} "$doc/share/yarn2nix"
        ${pkgs.skawarePackages.cleanPackaging.checkForRemainingFiles}
      '';
+
+     passthru.nixLib = import ./nix-lib {
+       inherit lib pkgs;
+       inherit yarn2nix;
+     };
    };
 
 in yarn2nix
