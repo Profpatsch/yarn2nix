@@ -3,8 +3,6 @@
 let
   pkgs = import nixpkgsPath {};
   lib = pkgs.lib;
-  nix-lib = pkgs.callPackage ./nix-lib {};
-  exactSource = import ./nix-lib/exact-source.nix;
 
   haskellPackages = pkgs.haskellPackages.override {
     overrides = lib.composeExtensions
@@ -43,4 +41,40 @@ let
       });
    };
 
-in haskellPackages.yarn2nix
+   static = pkgs.haskell.lib.justStaticExecutables haskellPackages.yarn2nix;
+
+   yarn2nix = pkgs.stdenv.mkDerivation {
+     name = "yarn2nix";
+     src = pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.;
+     outputs = [ "bin" "doc" "nixLib" "out" ];
+     phases = [ "unpackPhase" "installPhase" "fixupPhase" ];
+     installPhase = ''
+       install -D --target-directory=$bin/bin ${static}/bin/*
+       mv "nix-lib/" $nixLib
+       ${pkgs.skawarePackages.cleanPackaging.commonFileActions {
+          noiseFiles = [
+            "tests/*"
+            "src/*"
+            "Main.hs"
+            "package.yaml"
+            ".envrc"
+            "shell.nix"
+            "Repl.hs"
+            "nixpkgs-pinned.nix"
+            "yarn2nix.nix"
+            "default.nix"
+            "NodePackageTool.hs"
+            ".gitignore"
+            ".github"
+          ];
+          docFiles = [
+            "README.md"
+            "LICENSE"
+            "CHANGELOG.md"
+          ];
+        }} "$doc/share/yarn2nix"
+       ${pkgs.skawarePackages.cleanPackaging.checkForRemainingFiles}
+     '';
+   };
+
+in yarn2nix
