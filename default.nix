@@ -3,6 +3,9 @@
 let
   lib = pkgs.lib;
 
+  licensesJson =
+    pkgs.writeText "licenses.json" (builtins.toJSON lib.licenses);
+
   haskellPackages = pkgs.haskellPackages.override {
     overrides = lib.composeExtensions
       (pkgs.callPackage ./nix-lib/old-version-dependencies.nix {})
@@ -76,9 +79,13 @@ let
        ${pkgs.skawarePackages.cleanPackaging.checkForRemainingFiles}
      '';
 
-     passthru.nixLib = import ./nix-lib {
-       inherit lib pkgs;
-       inherit yarn2nix;
+     passthru = {
+       nixLib = import ./nix-lib {
+         inherit lib pkgs;
+         inherit yarn2nix;
+       };
+
+       inherit licensesJson;
      };
    };
 
