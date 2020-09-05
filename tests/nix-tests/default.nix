@@ -55,11 +55,7 @@ let
         };
         version = "1.5.3";
         nodeBuildInputs = [];
-        meta = {
-          description = "";
-          homepage = "";
-          license = "";
-        };
+        meta = { };
       })
     ]))
     (it "checks the readme example"
