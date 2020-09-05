@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7ff6aead541855fbc43b2a956884d777bdec58d05b79e1bafbbdb71ea4824ea7
+-- hash: cd09a515548908f7d48879243299f2f71fd0117b1746ef06467908c5f1a1d3b4
 
 name:           yarn2nix
 version:        0.8.0
@@ -36,6 +36,7 @@ library
   exposed-modules:
       Distribution.Nixpkgs.Nodejs.Cli
       Distribution.Nixpkgs.Nodejs.FromPackage
+      Distribution.Nixpkgs.Nodejs.License
       Distribution.Nixpkgs.Nodejs.OptimizedNixOutput
       Distribution.Nixpkgs.Nodejs.ResolveLockfile
       Distribution.Nixpkgs.Nodejs.RunConfig

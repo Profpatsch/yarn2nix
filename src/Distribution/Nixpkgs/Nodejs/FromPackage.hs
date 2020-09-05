@@ -12,7 +12,7 @@ import qualified Data.HashMap.Lazy as HML
 import Nix.Expr
 import Nix.Expr.Additions
 
-import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToSymbol)
+import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToSymbol, attrSetMayStr)
 import qualified Distribution.Nodejs.Package as NP
 import qualified Yarn.Lock.Types as YLT
 
@@ -44,9 +44,9 @@ genTemplate NP.Package{..} =
         , "nodeBuildInputs"  $= (letE "a" (mkSym nodeDepsSym)
                                   $ mkList (map (pkgDep "a") depPkgKeys))
         , "meta"      $= (mkNonRecSet
-           $ may "description" description
-          <> may "license" license
-          <> may "homepage" homepage)
+           $ attrSetMayStr "description" description
+          <> attrSetMayStr "license" license
+          <> attrSetMayStr "homepage" homepage)
         ])
   where
     -- TODO: The devDependencies are only needed for the build
@@ -63,4 +63,3 @@ genTemplate NP.Package{..} =
       [ bindTo "name"  $ mkStrQ [ StrQ n ]
       , bindTo "scope" $ mkStrQ [ StrQ s ]
       ]
-    may k v = maybeToList $ (k $=) . mkStr <$> v
