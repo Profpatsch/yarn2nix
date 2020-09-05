@@ -9,6 +9,7 @@ where
 
 import Protolude
 import qualified Data.ByteString.Lazy as BL
+import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Options.Applicative as O
@@ -26,6 +27,7 @@ import qualified Distribution.Nixpkgs.Nodejs.OptimizedNixOutput as NixOut
 import qualified Distribution.Nixpkgs.Nodejs.FromPackage as NodeFP
 import qualified Distribution.Nixpkgs.Nodejs.ResolveLockfile as Res
 import qualified Distribution.Nodejs.Package as NP
+import qualified Distribution.Nixpkgs.Nodejs.License as NodeL
 import Distribution.Nixpkgs.Nodejs.RunConfig
 
 description :: O.InfoMod a
@@ -74,20 +76,23 @@ runAction cfg = do
             Just path -> pure path
     parseYarn :: FilePath -> IO ()
     parseYarn path = do
-      let pathT = toS path
-      fc <- readFile path
-        `catch` \e
-          -> dieWithUsage ("Unable to open " <> pathT <> ":\n" <> show (e :: IOException))
+      fc <- catchCouldNotOpen path $ readFile path
       case YL.parse path fc of
         Right yarnfile  -> toStdout cfg yarnfile
-        Left err -> die' ("Could not parse " <> pathT <> ":\n" <> show err)
+        Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)
     parseNode :: FilePath -> IO ()
     parseNode path = do
       NP.decode <$> BL.readFile path >>= \case
         Right (NP.LoggingPackage (nodeModule, warnings)) -> do
           for_ warnings $ TIO.hPutStrLn stderr . NP.formatWarning
-          print $ NixP.prettyNix $ NodeFP.genTemplate nodeModule
+          licenseSet <- catchCouldNotOpen (fromJust $ runLicensesJson cfg)
+            . fmap join . sequence
+            $ (BL.readFile >=> pure . NodeL.decode) <$> runLicensesJson cfg
+          print $ NixP.prettyNix $ NodeFP.genTemplate licenseSet nodeModule
         Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)
+    catchCouldNotOpen :: FilePath -> IO a -> IO a
+    catchCouldNotOpen path action = action `catch` \e ->
+      dieWithUsage $ "Could not open " <> toS path <> ":\n" <> show (e :: IOException)
 
 -- get rid of odd linebreaks by increasing width enough
 optparsePrefs :: O.ParserPrefs
@@ -106,6 +111,10 @@ runConfigParser = RunConfig
   <*> O.switch
       (O.long "offline"
     <> O.help "Makes yarn2nix fail if network access is required")
+  <*> O.optional (O.option O.str
+     (O.long "license-data"
+   <> O.metavar "FILE"
+   <> O.help "Path to a license.json equivalent to lib.licenses from nixpkgs"))
   <*> O.optional (O.argument O.str (O.metavar "FILE"))
 
 runConfigParserWithHelp :: O.ParserInfo RunConfig

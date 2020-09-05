@@ -25,6 +25,9 @@ data RunConfig
                                        --   'Distribution.Nixpkgs.Nodejs.ResolveLockfile.resolveLockfileStatus'
                                        --   will throw an error in case resolving a hash
                                        --   requires network access.
+  , runLicensesJson :: Maybe FilePath  -- ^ Optional Path to a licenses.json file
+                                       --   equivalent to the lib.licenses set from
+                                       --   @nixpkgs@.
   , runInputFile    :: Maybe FilePath  -- ^ File to process. If missing the appropriate
                                        --   file for the current mode from the current
                                        --   working directory is used.

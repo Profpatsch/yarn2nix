@@ -17,6 +17,7 @@ let
   my-package-json = pkgs.writeText "package.json" (builtins.toJSON {
     name = "my-package";
     version = "1.5.3";
+    license = "MIT";
   });
 
   # very simple package depending on moment.js
@@ -42,10 +43,29 @@ let
     '';
   };
 
+  # convert a package.json to yarn2nix package template
+  template = package-json: pkgs.runCommandLocal "generate-template" {} ''
+    ${yarn2nix}/bin/yarn2nix --license-data ${yarn2nix.passthru.licensesJson} \
+      --template ${package-json} > $out
+    echo "template for ${package-json} is:" >&2
+    cat $out >&2
+  '';
+
+  # generates nix expression for license with a given spdx id and imports it
+  spdxLicenseSet = spdx:
+    let
+      packageJson = pkgs.writeText "package.json" (builtins.toJSON {
+        name = "license-test-${spdx}";
+        version = "0.1.0";
+        license = spdx;
+      });
+      tpl = import (template packageJson) {} {};
+    in tpl.meta.license;
+
   # test suite
   tests = runTestsuite "yarn2nix" [
     (it "checks the template output"
-      (let tmpl = nixLib.callPackageJson my-package-json {} {};
+      (let tmpl = import (template my-package-json) {} {};
       in [
       # TODO: this is a naïve match, might want to create a better test
       (assertEq "template" tmpl {
@@ -55,7 +75,9 @@ let
         };
         version = "1.5.3";
         nodeBuildInputs = [];
-        meta = { };
+        meta = {
+          license = pkgs.lib.licenses.mit;
+        };
       })
     ]))
     (it "checks the readme example"
@@ -71,6 +93,20 @@ let
         ".bin" = "directory";
         "moment" = "symlink";
       })]))
+    (it "checks license conversion"
+      (builtins.map
+        (v: assertEq v.spdx (spdxLicenseSet v.spdx) v.set)
+        (with pkgs.lib.licenses; [
+          # TODO recommended attribute name changes in more recent nixpkgs
+          { spdx = "AGPL-3.0-only"; set = agpl3; }
+          { spdx = "GPL-3.0-or-later"; set = gpl3Plus; }
+          { spdx = "MIT"; set = mit; }
+          { spdx = "BSD-3-Clause"; set = bsd3; }
+          { spdx = "ISC"; set = isc; }
+          { spdx = "UNLICENSED"; set = unfree; }
+          # Check that anything else is kept as is
+          { spdx = "See LICENSE.txt"; set = "See LICENSE.txt"; }
+    ])))
   ];
 
   # small helper that checks the output of tests
