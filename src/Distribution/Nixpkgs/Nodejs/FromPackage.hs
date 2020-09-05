@@ -63,4 +63,4 @@ genTemplate NP.Package{..} =
       [ bindTo "name"  $ mkStrQ [ StrQ n ]
       , bindTo "scope" $ mkStrQ [ StrQ s ]
       ]
-    may k v = [k $= mkStr (fromMaybe mempty v)]
+    may k v = maybeToList $ (k $=) . mkStr <$> v
