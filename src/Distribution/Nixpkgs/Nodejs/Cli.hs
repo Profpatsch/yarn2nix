@@ -23,57 +23,37 @@ import qualified Distribution.Nixpkgs.Nodejs.OptimizedNixOutput as NixOut
 import qualified Distribution.Nixpkgs.Nodejs.FromPackage as NodeFP
 import qualified Distribution.Nixpkgs.Nodejs.ResolveLockfile as Res
 import qualified Distribution.Nodejs.Package as NP
+import Distribution.Nixpkgs.Nodejs.RunConfig
 
-usage :: Text
-usage = mconcat $ intersperse "\n"
-  [ "yarn2nix [--offline] [path/to/yarn.lock]"
-  , ""
-  , "  Convert a `yarn.lock` into a synonymous nix expression."
-  , "  If no path is given, search for `./yarn.lock`."
-  , "  If --offline is given, abort if figuring out a hash"
-  , "  requires network access."
-  , ""
-  , "yarn2nix --template [path/to/package.json]"
-  , ""
-  , "  Generate a package template nix-expression for your `package.json`."
-  ]
-
-data Mode
-  = Node
-  | Yarn Res.ResolverConfig
-
-fileFor :: Mode -> Text
-fileFor (Yarn _) = "yarn.lock"
-fileFor Node = "package.json"
+fileFor :: RunConfig -> Text
+fileFor cfg =
+  case runMode cfg of
+    YarnLock -> "yarn.lock"
+    NodeTemplate -> "package.json"
 
 -- | Main entry point for @yarn2nix@.
-cli :: [Text] -> IO ()
-cli = \case
-  ["--help"] -> putText usage
-  ("--template":xs) -> fileLogic Node xs
-  ("--offline":xs) ->
-    fileLogic (Yarn (Res.defResolverConfig { Res.resolveOffline = True })) xs
-  xs -> fileLogic (Yarn Res.defResolverConfig) xs
+cli :: RunConfig -> IO ()
+cli cfg = do
+  file <- fileForConfig
+  case runMode cfg of
+    YarnLock -> parseYarn file
+    NodeTemplate -> parseNode file
   where
-    fileLogic :: Mode -> [Text] -> IO ()
-    fileLogic mode = \case
-      [] -> Dir.getCurrentDirectory >>= \d ->
-          Dir.findFile [d] (toS $ fileFor mode) >>= \case
-            Nothing -> do
-              dieWithUsage $ "No " <> fileFor mode <> " found in current directory"
-            Just path  -> parseFile mode path
-      [path] -> parseFile mode (toS path)
-      _ -> dieWithUsage ""
-    parseFile :: Mode -> FilePath -> IO ()
-    parseFile (Yarn cfg) = parseYarn cfg
-    parseFile Node = parseNode
-    parseYarn :: Res.ResolverConfig -> FilePath -> IO ()
-    parseYarn cfg path = do
+    fileForConfig :: IO FilePath
+    fileForConfig =
+      case runInputFile cfg of
+        Just f -> pure f
+        Nothing -> Dir.getCurrentDirectory >>= \d ->
+          Dir.findFile [d] (toS $ fileFor cfg) >>= \case
+            Nothing -> die'
+              $ "No " <> fileFor cfg <> " found in current directory"
+            Just path -> pure path
+    parseYarn :: FilePath -> IO ()
+    parseYarn path = do
       let pathT = toS path
       fc <- readFile path
         `catch` \e
-          -> do dieWithUsage ("Unable to open " <> pathT <> ":\n" <> show (e :: IOException))
-                pure ""
+          -> die' ("Unable to open " <> pathT <> ":\n" <> show (e :: IOException))
       case YL.parse path fc of
         Right yarnfile  -> toStdout cfg yarnfile
         Left err -> die' ("Could not parse " <> pathT <> ":\n" <> show err)
@@ -87,12 +67,9 @@ cli = \case
 
 die' :: Text -> IO a
 die' err = putErrText err *> exitFailure
-dieWithUsage :: Text -> IO ()
-dieWithUsage err = die' (err <> "\n" <> usage)
-
 
 -- TODO refactor
-toStdout :: Res.ResolverConfig -> YLT.Lockfile -> IO ()
+toStdout :: RunConfig -> YLT.Lockfile -> IO ()
 toStdout cfg lf = do
   ch <- newChan
   -- thrd <- forkIO $ forever $ do

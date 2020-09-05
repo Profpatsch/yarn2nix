@@ -50,6 +50,7 @@ executables:
     main: Main.hs
     dependencies:
       - yarn2nix
+      - optparse-applicative >= 0.13 && < 0.15
   node-package-tool:
     main: NodePackageTool.hs
     dependencies:

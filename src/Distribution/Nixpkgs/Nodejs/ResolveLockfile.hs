@@ -8,8 +8,6 @@ Resolving a 'YLT.Lockfile' and generating all necessary data (e.g. hashes), so t
 module Distribution.Nixpkgs.Nodejs.ResolveLockfile
 ( resolveLockfileStatus
 , Resolved(..), ResolvedLockfile
-, ResolverConfig (..)
-, defResolverConfig
 ) where
 
 import Protolude
@@ -23,6 +21,8 @@ import qualified System.Process as Process
 import qualified Control.Concurrent.Async.Pool as Async
 import qualified Control.Monad.STM as STM
 
+import Distribution.Nixpkgs.Nodejs.RunConfig (RunConfig (..))
+
 import qualified Yarn.Lock.Types as YLT
 
 nixPrefetchGitPath :: FilePath
@@ -30,16 +30,6 @@ nixPrefetchGitPath = "nix-prefetch-git"
 
 maxFetchers :: Int
 maxFetchers = 5
-
-data ResolverConfig
-  = ResolverConfig
-  { resolveOffline :: Bool -- ^ If @True@, 'resolveLockfileStatus' will throw an
-                           --   error in case resolving a hash requires network
-                           --   access (for when it started in a nix build)
-  }
-
-defResolverConfig :: ResolverConfig
-defResolverConfig = ResolverConfig False
 
 -- | A thing whose hash is already known (“resolved”).
 --
@@ -53,7 +43,11 @@ data Resolved a = Resolved
 type ResolvedLockfile = MKM.MKMap YLT.PackageKey (Resolved YLT.Package)
 
 -- | Resolve all packages by downloading their sources if necessary.
-resolveLockfileStatus :: ResolverConfig -> (Chan YLT.Remote) -> YLT.Lockfile
+--
+--   Respects 'runOffline' from 'RunConfig': If it is 'True', it throws
+--   an error as soon as it would need to download something which is the
+--   case for 'YLT.GitRemote'.
+resolveLockfileStatus :: RunConfig -> (Chan YLT.Remote) -> YLT.Lockfile
                       -> IO (Either (NE.NonEmpty Text) ResolvedLockfile)
 resolveLockfileStatus cfg msgChan lf = Async.withTaskGroup maxFetchers $ \taskGroup -> do
   job <- STM.atomically $ Async.mapReduce taskGroup
@@ -72,7 +66,7 @@ resolveLockfileStatus cfg msgChan lf = Async.withTaskGroup maxFetchers $ \taskGr
     resolve pkg = case YLT.remote pkg of
       YLT.FileRemote{..} -> pure $ r fileSha1
       YLT.FileLocal{..}  -> pure $ r fileLocalSha1
-      YLT.GitRemote{..}  -> if resolveOffline cfg
+      YLT.GitRemote{..}  -> if runOffline cfg
                               then E.throwE $ "Refusing to resolve \"git+"
                               <> gitRepoUrl <> "#" <> gitRev
                               <> "\" because --offline is set"
