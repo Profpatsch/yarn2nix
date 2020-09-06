@@ -43,14 +43,6 @@ let
     '';
   };
 
-  # convert a package.json to yarn2nix package template
-  template = package-json: pkgs.runCommandLocal "generate-template" {} ''
-    ${yarn2nix}/bin/yarn2nix --license-data ${yarn2nix.passthru.licensesJson} \
-      --template ${package-json} > $out
-    echo "template for ${package-json} is:" >&2
-    cat $out >&2
-  '';
-
   # generates nix expression for license with a given spdx id and imports it
   spdxLicenseSet = spdx:
     let
@@ -59,13 +51,13 @@ let
         version = "0.1.0";
         license = spdx;
       });
-      tpl = import (template packageJson) {} {};
+      tpl = nixLib.callPackageJson packageJson {} {};
     in tpl.meta.license;
 
   # test suite
   tests = runTestsuite "yarn2nix" [
     (it "checks the template output"
-      (let tmpl = import (template my-package-json) {} {};
+      (let tmpl = nixLib.callPackageJson my-package-json {} {};
       in [
       # TODO: this is a naïve match, might want to create a better test
       (assertEq "template" tmpl {
