@@ -41,6 +41,7 @@ dependencies:
   - transformers == 0.5.*
   - unordered-containers == 0.2.*
   - yarn-lock == 0.6.*
+  - optparse-applicative >= 0.13 && < 0.16
 
 library:
   source-dirs: src
@@ -50,7 +51,6 @@ executables:
     main: Main.hs
     dependencies:
       - yarn2nix
-      - optparse-applicative >= 0.13
   node-package-tool:
     main: NodePackageTool.hs
     dependencies:
