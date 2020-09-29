@@ -1,8 +1,8 @@
 { mkDerivation, aeson, async-pool, base, bytestring, containers
-, data-fix, directory, filepath, hnix, mtl
+, data-fix, directory, filepath, hnix, hpack, mtl
 , neat-interpolation, optparse-applicative, prettyprinter, process
-, protolude, regex-tdfa, regex-tdfa-text, stdenv, stm, tasty
-, tasty-hunit, tasty-quickcheck, tasty-th, text, transformers, unix
+, protolude, regex-tdfa, stdenv, stm, tasty, tasty-hunit
+, tasty-quickcheck, tasty-th, text, transformers, unix
 , unordered-containers, yarn-lock
 }:
 mkDerivation {
@@ -14,21 +14,22 @@ mkDerivation {
   libraryHaskellDepends = [
     aeson async-pool base bytestring containers data-fix directory
     filepath hnix mtl optparse-applicative prettyprinter process
-    protolude regex-tdfa regex-tdfa-text stm text transformers
-    unordered-containers yarn-lock
+    protolude regex-tdfa stm text transformers unordered-containers
+    yarn-lock
   ];
+  libraryToolDepends = [ hpack ];
   executableHaskellDepends = [
     aeson async-pool base bytestring containers data-fix directory
     filepath hnix mtl optparse-applicative prettyprinter process
-    protolude regex-tdfa regex-tdfa-text stm text transformers unix
+    protolude regex-tdfa stm text transformers unix
     unordered-containers yarn-lock
   ];
   testHaskellDepends = [
     aeson async-pool base bytestring containers data-fix directory
     filepath hnix mtl neat-interpolation optparse-applicative
-    prettyprinter process protolude regex-tdfa regex-tdfa-text stm
-    tasty tasty-hunit tasty-quickcheck tasty-th text transformers
-    unordered-containers yarn-lock
+    prettyprinter process protolude regex-tdfa stm tasty tasty-hunit
+    tasty-quickcheck tasty-th text transformers unordered-containers
+    yarn-lock
   ];
   homepage = "https://github.com/Profpatsch/yarn2nix#readme";
   description = "Convert yarn.lock files to nix expressions";

@@ -13,7 +13,6 @@ with import ./nixpkgs-pinned.nix {};
           async-pool
           ansi-wl-pprint
           regex-tdfa
-          regex-tdfa-text
           neat-interpolation
           tasty-th
           tasty-quickcheck
