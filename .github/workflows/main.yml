@@ -29,6 +29,12 @@ jobs:
         name: yarn2nix
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
 
+    - name: check cabal file up to date (run hpack)
+      run: |
+        nix-shell \
+          -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ haskellPackages.hpack ]; }' \
+          --run 'hpack && git diff --exit-code'
+
     # Runs a single command using the runners shell
     - name: Build nix-tests
       run: env NIX_PATH= nix-build tests/nix-tests/default.nix

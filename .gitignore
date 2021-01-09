@@ -1,5 +1,4 @@
 /dist-newstyle/
 /result*
 /tests/nix-tests/result*
-/yarn2nix.cabal
 Setup*
