@@ -56,6 +56,7 @@ let
             "src/*"
             "Main.hs"
             "package.yaml"
+            "yarn2nix.cabal"
             ".envrc"
             "shell.nix"
             "Repl.hs"
