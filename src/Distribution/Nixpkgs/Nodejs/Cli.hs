@@ -114,7 +114,9 @@ runConfigParser = RunConfig
   <*> O.optional (O.option O.str
      (O.long "license-data"
    <> O.metavar "FILE"
-   <> O.help "Path to a license.json equivalent to nixpkgs.lib.licenses"))
+   <> O.help "Path to a license.json equivalent to nixpkgs.lib.licenses"
+   -- only really interesting for wrapping at build
+   <> O.internal))
   <*> O.optional (O.argument O.str (O.metavar "FILE"))
 
 runConfigParserWithHelp :: O.ParserInfo RunConfig
