@@ -16,7 +16,7 @@ module Distribution.Nixpkgs.Nodejs.License
 
 import Protolude
 
-import Data.Aeson ((.:), (.:?))
+import Data.Aeson ((.:), (.:?), (.!=))
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as AT
 import qualified Data.ByteString.Lazy as BL
@@ -77,7 +77,7 @@ addNixpkgsLicense attr val lics = do
     Just i -> pure $ LicensesBySpdxId $ HML.insert i license licsMap
   where parseLicense v = NixpkgsLicense
           <$> pure attr
-          <*> v .:  "shortName"
+          <*> v .:? "shortName" .!= attr
           <*> v .:? "spdxId"
           <*> v .:  "fullName"
           <*> v .:? "url"
