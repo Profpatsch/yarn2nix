@@ -1,9 +1,9 @@
 { mkDerivation, aeson, async-pool, base, bytestring, containers
-, data-fix, directory, filepath, hnix, hpack, mtl
+, data-fix, directory, filepath, hnix, lib, mtl
 , neat-interpolation, optparse-applicative, prettyprinter, process
-, protolude, regex-tdfa, stdenv, stm, tasty, tasty-hunit
-, tasty-quickcheck, tasty-th, text, transformers, unix
-, unordered-containers, yarn-lock
+, protolude, regex-tdfa, stm, tasty, tasty-hunit, tasty-quickcheck
+, tasty-th, text, transformers, unix, unordered-containers
+, yarn-lock
 }:
 mkDerivation {
   pname = "yarn2nix";
@@ -17,7 +17,6 @@ mkDerivation {
     protolude regex-tdfa stm text transformers unordered-containers
     yarn-lock
   ];
-  libraryToolDepends = [ hpack ];
   executableHaskellDepends = [
     aeson async-pool base bytestring containers data-fix directory
     filepath hnix mtl optparse-applicative prettyprinter process
@@ -33,5 +32,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/Profpatsch/yarn2nix#readme";
   description = "Convert yarn.lock files to nix expressions";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

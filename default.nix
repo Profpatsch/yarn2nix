@@ -7,8 +7,7 @@ let
     (builtins.toJSON (lib.filterAttrs (n: v: v ? spdxId) lib.licenses));
 
   haskellPackages = pkgs.haskellPackages.override {
-    overrides = lib.composeExtensions
-      (pkgs.callPackage ./nix-lib/old-version-dependencies.nix {})
+    overrides =
       (self: super: {
         yarn2nix =
           let
