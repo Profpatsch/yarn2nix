@@ -1,4 +1,4 @@
-{ stdenv, linkNodeDeps, nodejs, yarn2nix }:
+{ lib, stdenv, linkNodeDeps, nodejs, yarn2nix }:
 { key # { scope: String, name: String }
 , version # String
 , src # Drv
@@ -11,7 +11,7 @@ assert (args ? preBuild || args ? postBuild) -> args ? buildPhase;
 # same for configurePhase
 assert (args ? preConfigure || args ? postConfigure) -> args ? configurePhase;
 
-with stdenv.lib;
+with lib;
 
 let
   # TODO: scope should be more structured somehow. :(

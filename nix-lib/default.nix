@@ -56,7 +56,7 @@ let
 
   buildNodePackage = import ./buildNodePackage.nix {
     inherit linkNodeDeps yarn2nix;
-    inherit (pkgs) stdenv nodejs;
+    inherit (pkgs) stdenv lib nodejs;
   };
 
   # Link together a `node_modules` folder that can be used
