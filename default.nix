@@ -21,7 +21,7 @@ let
                     src/Distribution/Nixpkgs/Nodejs/ResolveLockfile.hs \
                     --replace '"nix-prefetch-git"' \
                       '"${pkgs.nix-prefetch-git.override { git = pkgs.gitMinimal; }}/bin/nix-prefetch-git"'
-                  sed -i '/license-data/a \ <> O.value "${licensesJson}" <> O.showDefault' \
+                  sed -i '/license-data/a \ <> O.value "${licensesJson}"' \
                     src/Distribution/Nixpkgs/Nodejs/Cli.hs
                 '';
               });
