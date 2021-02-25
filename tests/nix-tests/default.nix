@@ -89,8 +89,7 @@ let
       (builtins.map
         (v: assertEq v.spdx (spdxLicenseSet v.spdx) v.set)
         (with pkgs.lib.licenses; [
-          # TODO recommended attribute name changes in more recent nixpkgs
-          { spdx = "AGPL-3.0-only"; set = agpl3; }
+          { spdx = "AGPL-3.0-only"; set = agpl3Only; }
           { spdx = "GPL-3.0-or-later"; set = gpl3Plus; }
           { spdx = "MIT"; set = mit; }
           { spdx = "BSD-3-Clause"; set = bsd3; }

@@ -10,8 +10,10 @@ module Distribution.Nixpkgs.Nodejs.ResolveLockfile
 , Resolved(..), ResolvedLockfile
 ) where
 
-import Protolude
+import Protolude hiding (toS)
+import Protolude.Conv (toS)
 import qualified Control.Monad.Trans.Except as E
+import Data.ByteString.Lazy ()
 import qualified Data.List.NonEmpty as NE
 import qualified Data.MultiKeyedMap as MKM
 import qualified Data.Aeson as Aeson
