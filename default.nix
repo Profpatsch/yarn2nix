@@ -12,7 +12,7 @@ let
         yarn2nix =
           let
             pkg = pkgs.haskell.lib.overrideCabal
-              (self.callPackage ./yarn2nix.nix {})
+              (self.callPackage ./yarn2nix/yarn2nix.nix {})
               (old: {
                 prePatch = old.prePatch or "" + ''
                   ${lib.getBin self.hpack}/bin/hpack
@@ -28,7 +28,7 @@ let
           in pkgs.haskell.lib.overrideCabal pkg (old: {
             src = builtins.filterSource
               (path: type:
-                 if lib.any (p: lib.hasPrefix (toString ./. + "/" + p) path) [
+                 if lib.any (p: lib.hasPrefix (toString ./yarn2nix + "/" + p) path) [
                    "package.yaml"
                    "LICENSE"
                    "src"
@@ -39,7 +39,7 @@ let
                  ]
                  then true
                  else false
-              ) ./.;
+              ) ./yarn2nix;
           });
       });
    };
@@ -48,7 +48,7 @@ let
 
    yarn2nix = pkgs.stdenv.mkDerivation {
      name = "yarn2nix";
-     src = pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.;
+     src = pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./yarn2nix;
      outputs = [ "bin" "doc" "nixLib" "out" ];
      phases = [ "unpackPhase" "installPhase" "fixupPhase" ];
      installPhase = ''
@@ -59,6 +59,7 @@ let
             "tests/*"
             "src/*"
             "Main.hs"
+            "Setup.hs"
             "package.yaml"
             "yarn2nix.cabal"
             ".envrc"
@@ -80,7 +81,7 @@ let
        ${pkgs.skawarePackages.cleanPackaging.checkForRemainingFiles}
      '';
 
-     passthru.nixLib = import ./nix-lib {
+     passthru.nixLib = import ./yarn2nix/nix-lib {
        inherit lib pkgs;
        inherit yarn2nix;
      };

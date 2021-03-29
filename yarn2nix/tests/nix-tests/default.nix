@@ -1,6 +1,7 @@
-{ pkgs ? import ../../nixpkgs-pinned.nix {}
+# TODO: pkgs ad yarn2nix reference files from outside of the cabal package
+{ pkgs ? import ../../../nixpkgs-pinned.nix {}
 , nixLibPath ? ../../nix-lib
-, yarn2nix ? import ../../. { inherit pkgs; }
+, yarn2nix ? import ../../../. { inherit pkgs; }
 }:
 let
   nixLib = pkgs.callPackage nixLibPath {
