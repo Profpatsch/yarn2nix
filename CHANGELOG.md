@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.6.3] - 2021-03-29
+
+- Relax upper bounds of `protolude` and `megaparsec`.
+
 ## [0.6.2] - 2019-12-22
 
 - `megaparsec` `0.8` is compatible as well as `0.7`.
