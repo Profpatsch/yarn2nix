@@ -12,9 +12,6 @@ category: Distribution, Nix
 extra-source-files:
   - LICENSE
   - README.md
-  - yarn2nix.nix
-  - default.nix
-  - shell.nix
   - nix-lib/*
 
 ghc-options:

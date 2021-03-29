@@ -33,8 +33,8 @@ jobs:
       run: |
         nix-shell \
           -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ haskellPackages.hpack ]; }' \
-          --run 'hpack && git diff --exit-code'
+          --run 'cd yarn2nix && hpack && git diff --exit-code'
 
     # Runs a single command using the runners shell
     - name: Build nix-tests
-      run: env NIX_PATH= nix-build tests/nix-tests/default.nix
+      run: env NIX_PATH= nix-build yarn2nix/tests/nix-tests/default.nix
