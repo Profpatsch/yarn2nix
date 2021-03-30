@@ -11,7 +11,7 @@ let
 
   yarn2nix = pkgs.stdenv.mkDerivation {
     name = "yarn2nix";
-    src = pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./yarn2nix;
+    src = "${pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.}/yarn2nix";
     outputs = [ "bin" "doc" "out" ];
     phases = [ "unpackPhase" "installPhase" "fixupPhase" ];
     installPhase = ''
@@ -25,14 +25,9 @@ let
            "package.yaml"
            "yarn2nix.cabal"
            ".envrc"
-           "shell.nix"
            "Repl.hs"
-           "nixpkgs-pinned.nix"
            "yarn2nix.nix"
-           "default.nix"
            "NodePackageTool.hs"
-           ".gitignore"
-           ".github"
            "nix-lib"
          ];
          docFiles = [
