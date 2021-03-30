@@ -9,6 +9,25 @@ let
   haskellPackages = pkgs.haskellPackages.override {
     overrides =
       (self: super: {
+        yarn-lock =
+          let
+            pkg = self.callPackage ./yarn-lock/yarn-lock.nix {};
+          in pkgs.haskell.lib.overrideCabal pkg (old: {
+            src = builtins.filterSource
+              (path: type:
+                 if lib.any (p: lib.hasPrefix (toString ./yarn-lock + "/" + p) path) [
+                   "package.yaml"
+                   "LICENSE"
+                   "CHANGELOG.md"
+                   "src"
+                   "tests"
+                 ]
+                 then true
+                 else false
+              ) ./yarn-lock;
+          });
+
+
         yarn2nix =
           let
             pkg = pkgs.haskell.lib.overrideCabal
@@ -34,7 +53,6 @@ let
                    "src"
                    "NodePackageTool.hs"
                    "Main.hs"
-                   "Test.hs"
                    "tests"
                  ]
                  then true

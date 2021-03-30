@@ -1,2 +1,3 @@
 packages:
   ./yarn2nix
+  ./yarn-lock

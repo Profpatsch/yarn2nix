@@ -29,11 +29,31 @@ jobs:
         name: yarn2nix
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
 
+    # TODO: move into nix script
     - name: check cabal file up to date (run hpack)
       run: |
         nix-shell \
-          -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ haskellPackages.hpack ]; }' \
-          --run 'cd yarn2nix && hpack && git diff --exit-code'
+          -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ haskellPackages.hpack execline ]; }' \
+          --run '
+            execline-cd yarn2nix hpack \
+            && \
+            execline-cd yarn-lock hpack \
+            && \
+            git diff --exit-code
+          '
+
+    # TODO: move into nix script
+    - name: check nix files up to date (run cabal2nix)
+      run: |
+        nix-shell \
+          -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ haskellPackages.hpack execline cabal2nix ]; }' \
+          --run '
+            execline-cd yarn2nix redirfd -w 1 yarn2nix.nix cabal2nix . \
+            && \
+            execline-cd yarn-lock redirfd -w 1 yarn-lock.nix cabal2nix . \
+            && \
+            git diff --exit-code
+          '
 
     # Runs a single command using the runners shell
     - name: Build nix-tests
