@@ -26,7 +26,9 @@ pkgs.haskellPackages.override {
     (self: super: {
       yarn-lock =
         let
-          pkg = self.callPackage ./yarn-lock/yarn-lock.nix {};
+          pkg = self.callPackage ./yarn-lock/yarn-lock.nix {
+            inherit (pkgs) hpack;
+          };
         in pkgs.haskell.lib.overrideCabal pkg (old: {
           version = "git";
           src = minimalHaskellSource ./yarn-lock [];
@@ -34,7 +36,9 @@ pkgs.haskellPackages.override {
 
       yarn2nix =
         let
-          pkg = self.callPackage ./yarn2nix/yarn2nix.nix {};
+          pkg = self.callPackage ./yarn2nix/yarn2nix.nix {
+            inherit (pkgs) hpack;
+          };
         in pkgs.haskell.lib.overrideCabal pkg (old: {
           version = "git";
           src = minimalHaskellSource ./yarn2nix [
