@@ -5,7 +5,7 @@
 }:
 mkDerivation {
   pname = "yarn-lock";
-  version = "0.6.2";
+  version = "0.6.3";
   src = ./.;
   libraryHaskellDepends = [
     base containers either megaparsec protolude text
