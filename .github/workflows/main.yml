@@ -33,7 +33,7 @@ jobs:
     - name: check cabal file up to date (run hpack)
       run: |
         nix-shell \
-          -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ haskellPackages.hpack execline ]; }' \
+          -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ hpack execline ]; }' \
           --run '
             execline-cd yarn2nix hpack \
             && \
@@ -46,7 +46,7 @@ jobs:
     - name: check nix files up to date (run cabal2nix)
       run: |
         nix-shell \
-          -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ haskellPackages.hpack execline cabal2nix ]; }' \
+          -E 'with import ./nixpkgs-pinned.nix {}; mkShell { buildInputs = [ hpack execline cabal2nix ]; }' \
           --run '
             execline-cd yarn2nix redirfd -w 1 yarn2nix.nix cabal2nix . \
             && \

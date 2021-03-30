@@ -1,13 +1,13 @@
-with import ./nixpkgs-pinned.nix {};
-(haskellPackages.override {
+let
+  pkgs = import ./nixpkgs-pinned.nix {};
+in
+(pkgs.haskellPackages.override {
   overrides =
     (self: super: {
       my-pkg = let
         buildDepends = with self; [
           protolude
-          yarn-lock
           hnix
-          hpack
           aeson
           async-pool
           ansi-wl-pprint
@@ -25,10 +25,12 @@ with import ./nixpkgs-pinned.nix {};
           version = "none";
           license = "none";
           inherit buildDepends;
-          buildTools = with self; [
-            ghcid
-            cabal-install
-            (hoogleLocal {
+          buildTools = [
+            pkgs.hpack
+            pkgs.cabal2nix
+            self.ghcid
+            pkgs.cabal-install
+            (self.hoogleLocal {
               packages = buildDepends;
             })
           ];

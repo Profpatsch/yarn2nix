@@ -33,8 +33,8 @@ let
             pkg = pkgs.haskell.lib.overrideCabal
               (self.callPackage ./yarn2nix/yarn2nix.nix {})
               (old: {
-                prePatch = old.prePatch or "" + ''
-                  ${lib.getBin self.hpack}/bin/hpack
+                prePatch = ''
+                  ${pkgs.hpack}/bin/hpack
                   # we depend on the git prefetcher
                   substituteInPlace \
                     src/Distribution/Nixpkgs/Nodejs/ResolveLockfile.hs \
@@ -49,6 +49,8 @@ let
               (path: type:
                  if lib.any (p: lib.hasPrefix (toString ./yarn2nix + "/" + p) path) [
                    "package.yaml"
+                   "README.md"
+                   "nix-lib"
                    "LICENSE"
                    "src"
                    "NodePackageTool.hs"
