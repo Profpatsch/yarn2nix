@@ -12,11 +12,10 @@ let
    yarn2nix = pkgs.stdenv.mkDerivation {
      name = "yarn2nix";
      src = pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./yarn2nix;
-     outputs = [ "bin" "doc" "nixLib" "out" ];
+     outputs = [ "bin" "doc" "out" ];
      phases = [ "unpackPhase" "installPhase" "fixupPhase" ];
      installPhase = ''
        install -D --target-directory=$bin/bin ${static}/bin/*
-       mv "nix-lib/" $nixLib
        ${pkgs.skawarePackages.cleanPackaging.commonFileActions {
           noiseFiles = [
             "tests/*"
@@ -34,6 +33,7 @@ let
             "NodePackageTool.hs"
             ".gitignore"
             ".github"
+            "nix-lib"
           ];
           docFiles = [
             "README.md"
