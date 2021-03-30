@@ -1,0 +1,43 @@
+name: yarn-lock
+version: 0.6.2
+github: Profpatsch/yarn-lock
+license: MIT
+license-file: LICENSE
+synopsis: Represent and parse yarn.lock files
+description:
+  Types and parser for the lock file format of the npm successor yarn.
+  All modules should be imported qualified.
+author: Profpatsch
+maintainer: mail@profpatsch.de
+category: Data
+extra-source-files:
+  - CHANGELOG.md
+
+ghc-options:
+  - -Wall
+
+dependencies:
+  - base == 4.*
+  - containers
+  - text
+  - megaparsec >= 7 && < 10
+  - protolude >= 0.2 && < 0.4
+  - either >= 4 && < 6
+
+library:
+  source-dirs: src
+
+tests:
+  yarn-lock-tests:
+    main: Test.hs
+    source-dirs: tests
+    dependencies:
+      - yarn-lock
+      - ansi-wl-pprint >= 0.6
+      - tasty >= 0.11
+      - tasty-th >= 0.1.7
+      - tasty-hunit >= 0.9
+      - tasty-quickcheck >= 0.8
+      - quickcheck-instances == 0.3.*
+      - protolude
+      - neat-interpolation >= 0.3
