@@ -1,6 +1,6 @@
 name: yarn-lock
-version: 0.6.3
-github: Profpatsch/yarn-lock
+version: 0.6.4
+github: Profpatsch/yarn2nix
 license: MIT
 license-file: LICENSE
 synopsis: Represent and parse yarn.lock files

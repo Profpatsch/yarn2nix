@@ -5,7 +5,7 @@
 }:
 mkDerivation {
   pname = "yarn-lock";
-  version = "0.6.3";
+  version = "0.6.4";
   src = ./.;
   libraryHaskellDepends = [
     base containers either megaparsec protolude text
@@ -17,7 +17,7 @@ mkDerivation {
     tasty-th text
   ];
   prePatch = "hpack";
-  homepage = "https://github.com/Profpatsch/yarn-lock#readme";
+  homepage = "https://github.com/Profpatsch/yarn2nix#readme";
   description = "Represent and parse yarn.lock files";
   license = lib.licenses.mit;
 }

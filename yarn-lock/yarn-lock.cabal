@@ -5,12 +5,12 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           yarn-lock
-version:        0.6.3
+version:        0.6.4
 synopsis:       Represent and parse yarn.lock files
 description:    Types and parser for the lock file format of the npm successor yarn. All modules should be imported qualified.
 category:       Data
-homepage:       https://github.com/Profpatsch/yarn-lock#readme
-bug-reports:    https://github.com/Profpatsch/yarn-lock/issues
+homepage:       https://github.com/Profpatsch/yarn2nix#readme
+bug-reports:    https://github.com/Profpatsch/yarn2nix/issues
 author:         Profpatsch
 maintainer:     mail@profpatsch.de
 license:        MIT
@@ -21,7 +21,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/Profpatsch/yarn-lock
+  location: https://github.com/Profpatsch/yarn2nix
 
 library
   exposed-modules:
