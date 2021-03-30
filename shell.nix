@@ -6,18 +6,22 @@ in
     (self: super: {
       my-pkg = let
         buildDepends = with self; [
-          protolude
-          hnix
           aeson
-          async-pool
           ansi-wl-pprint
-          regex-tdfa
-          neat-interpolation
-          tasty-th
-          tasty-quickcheck
-          tasty-hunit
+          async-pool
+          either
+          hnix
           http-client-tls
           monad-par
+          neat-interpolation
+          old-locale
+          old-time
+          protolude
+          quickcheck-instances
+          regex-tdfa
+          tasty-hunit
+          tasty-quickcheck
+          tasty-th
         ];
         in super.mkDerivation {
           pname = "pkg-env";
