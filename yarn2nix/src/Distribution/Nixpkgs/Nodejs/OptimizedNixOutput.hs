@@ -1,4 +1,11 @@
-{-# LANGUAGE OverloadedStrings, NoImplicitPrelude, GeneralizedNewtypeDeriving, ViewPatterns, RecordWildCards, LambdaCase, NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-|
 Description: Generate an optimized nix file from a resolved @YLT.Lockfile@
 
@@ -19,6 +26,7 @@ module Distribution.Nixpkgs.Nodejs.OptimizedNixOutput
 -- * File Structure
 -- $fileStructure
 , mkPackageSet
+, mkPackageSetTempl
 -- * NOTE: fix
 -- $noteFix
 ) where
@@ -26,6 +34,7 @@ module Distribution.Nixpkgs.Nodejs.OptimizedNixOutput
 import Protolude
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Fix (Fix(Fix))
 import qualified Data.MultiKeyedMap as MKM
 import qualified Data.List as List
@@ -36,10 +45,14 @@ import Nix.Expr.Additions (($$=), (!!.), inheritStatic)
 import qualified Nix.Expr as N
 import qualified Nix.Expr.Additions as NA
 
+import qualified Data.Text.Template as Template
+import Text.QQ (text)
+
 import qualified Yarn.Lock.Types as YLT
 
 import qualified Distribution.Nixpkgs.Nodejs.ResolveLockfile as Res
 import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToSymbol)
+
 
 -- | Nix symbol.
 newtype NSym = NSym { unNSym :: Text }
@@ -229,6 +242,68 @@ in {
 }
 @
 -}
+mkPackageSetTempl :: M.Map Text PkgRef -> TL.Text
+mkPackageSetTempl packages = subst [text|
+  { fetchgit, fetchurl }:
+  self: super:
+  let
+    registries = {
+  $registries
+    };
+
+    <functions>
+
+    identityRegistry = url: _: _: url;
+
+    scopedName = scope: name: { inherit scope name; };
+
+    $shortcuts
+
+  in {
+    $packages
+  }
+|]
+  [ ( "registries"
+    , mconcat $ indent 4
+      [ [text|yarn = n: v: "https://registry.yarnpkg.com/${n}/-/${n}-${v}.tgz";|]
+      , [text|fooo;|]
+      ] )
+  , ( "shortcuts", "TODO shortcuts" )
+  , ( "packages" , "" )
+  ]
+
+  where
+    subst :: Text -> [(Text, Text)] -> TL.Text
+    subst templ list = Template.substitute templ
+      (\key -> case M.lookup key (M.fromList list) of
+          Nothing -> panic $ "don’t have template replacement for `" <> key <> "`"
+          Just a -> a)
+
+    indent :: Int -> [Text] -> [Text]
+    indent n xs = map (T.replicate n " " <>) xs
+
+    mkPkg :: (Text, PkgRef) -> TL.Text
+    mkPkg (key, pkgRef) = case pkgRef of
+      -- refers to another package via a self-dereference
+      PkgRef packageName ->
+        subst
+          [text|$key = $self.$packageName|]
+          [ ("key", key)
+          , ("self", "s")
+          , ("packageName", packageName)
+          ]
+      -- refers to a file package (i.e. a tarball) on a registry
+      PkgDefFile pd@PkgData{pkgDataUpstream, pkgDataHashSum} ->
+        mkDefGeneric pd "nodeFilePackage"
+          [ either (\url -> shorten ["identityRegistry"] @@ N.mkStr url )
+                   (\reg -> shorten ["registries", registrySym reg])
+                   pkgDataUpstream
+          , N.mkStr pkgDataHashSum ]
+      -- PkgDefFileLocal pd@PkgData{pkgDataUpstream = path, pkgDataHashSum} ->
+      --   mkDefGeneric pd "nodeFileLocalPackage" [ N.mkPath False (toS path), N.mkStr pkgDataHashSum ]
+      -- PkgDefGit pd@PkgData{pkgDataUpstream = Git{..}, pkgDataHashSum} ->
+      --   mkDefGeneric pd "nodeGitPackage"
+      --     [ N.mkStr gitUrl, N.mkStr gitRev, N.mkStr pkgDataHashSum ]
 
 -- | Convert a list of packages prepared with 'convertLockfile'
 -- to a nix expression.

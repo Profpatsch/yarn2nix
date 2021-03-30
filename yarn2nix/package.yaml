@@ -33,6 +33,8 @@ dependencies:
   - protolude ^>= 0.3
   - regex-tdfa ^>= 1.3
   - stm > 2.4.0 && < 2.6.0.0
+  - template == 0.2.*
+  - template-haskell
   - text == 1.2.*
   - transformers == 0.5.*
   - unordered-containers == 0.2.*
