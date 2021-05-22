@@ -126,9 +126,6 @@ runConfigParserWithHelp =
 die' :: Text -> IO a
 die' err = putErrText err *> exitFailure
 
--- TODO from optparse-applicative 0.16.0.0 ShowHelpText
--- accepts an error message as argument, so we can use
--- that instead of putErrText.
 dieWithUsage :: Text -> IO a
 dieWithUsage err = do
   putErrText (err <> "\n")
@@ -136,7 +133,7 @@ dieWithUsage err = do
   hPutStr stderr
     . fst . flip O.renderFailure progn
     $ O.parserFailure optparsePrefs
-        runConfigParserWithHelp O.ShowHelpText mempty
+        runConfigParserWithHelp (O.ShowHelpText Nothing) mempty
   exitFailure
 
 -- TODO refactor
