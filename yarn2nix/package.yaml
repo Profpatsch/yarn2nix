@@ -26,7 +26,7 @@ dependencies:
   - data-fix >= 0.0.7 && < 0.4
   - directory == 1.3.*
   - filepath == 1.4.*
-  - hnix >= 0.6 && < 0.13
+  - hnix >= 0.6 && < 0.14
   - mtl == 2.2.*
   - prettyprinter >= 1.2 && < 1.8
   - process >= 1.4
