@@ -1,7 +1,7 @@
 let
-  # nixos unstable 2021-05-19
-  rev = "667950d4e8b2e7ae6e9fd67ee7c9de6a3271044f";
-  sha256 = "00g52s3c1fqxpcs7grca7zdw8yb4780ns2jxf73hkiri2ndmd197";
+  # nixos unstable 2021-06-23
+  rev = "1905f5f2e55e0db0bb6244cfe62cb6c0dbda391d";
+  sha256 = "148f79hhya66qj8v5gn7bs6zrfjy1nbvdciyxdm4yd5p8r6ayzv6";
 in
 
 import (builtins.fetchTarball {
