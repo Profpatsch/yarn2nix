@@ -1,4 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
 {-|
 Module : Yarn.Lock.Helpers
 Description : Helpers for modifying Lockfiles
@@ -13,13 +12,13 @@ module Yarn.Lock.Helpers
 ( decycle
 ) where
 
-import Protolude
 import qualified Data.List as L
 import GHC.Stack (HasCallStack)
 
 import qualified Data.MultiKeyedMap as MKM
 
 import Yarn.Lock.Types
+import Data.Foldable (foldl')
 
 
 -- | Takes a 'Lockfile' and removes dependency cycles.
@@ -52,4 +51,5 @@ decycle lf = goFold [] lf (MKM.keys lf)
                                , optionalDependencies = newOptDeps }) lf'
       -- finally we do the same for all remaining deps
       in goFold seen lf'' $ newDeps ++ newOptDeps
-    go [] _ = panic $ toS "should not happen!"
+    go [] _ = error "should not happen!"
+

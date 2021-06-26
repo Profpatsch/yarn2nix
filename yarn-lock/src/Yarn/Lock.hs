@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, LambdaCase, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE LambdaCase, OverloadedStrings, RecordWildCards #-}
 {-|
 Module : Yarn.Lock
 Description : High-level parser of yarn.lock files
@@ -18,8 +18,6 @@ module Yarn.Lock
 , LockfileError(..), PackageErrorInfo(..)
 ) where
 
-import Protolude hiding ((<>))
-import Data.Semigroup ((<>))
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NE
 import qualified Text.Megaparsec as MP
@@ -28,6 +26,12 @@ import qualified Data.Either.Validation as V
 import qualified Yarn.Lock.Types as T
 import qualified Yarn.Lock.File as File
 import qualified Yarn.Lock.Parse as Parse
+import Data.Text (Text)
+import Data.Functor ((<&>))
+import Control.Monad ((>=>))
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+import Data.Bifunctor (first, Bifunctor (bimap))
 
 -- | Everything that can go wrong when parsing a 'Lockfile'.
 data LockfileError
@@ -51,7 +55,7 @@ data PackageErrorInfo = PackageErrorInfo
 -- see 'File.fromPackages'.
 parseFile :: FilePath -- ^ file to read
           -> IO (Either LockfileError T.Lockfile)
-parseFile fp = readFile fp >>= pure . parse fp
+parseFile fp = Text.IO.readFile fp <&> parse fp
 
 -- | For when you want to provide only the file contents.
 parse :: FilePath -- ^ name of the input file, used for the parser
@@ -65,12 +69,12 @@ prettyLockfileError = \case
   (ParseError t) -> "Error while parsing the yarn.lock:\n"
     <> T.unlines (indent 2 (T.lines t))
   (PackageErrors errs) -> "Some packages could not be made sense of:\n"
-    <> T.unlines (NE.toList $ indent 2 (join $ fmap errText errs))
+    <> T.unlines (NE.toList $ indent 2 (errs >>= errText))
   where
     indent :: Functor f => Int -> f Text -> f Text
     indent i = fmap (T.replicate i " " <>)
-    errText (PackageErrorInfo{..}) =
-      (pure $ "Package at " <> (toS $ MP.sourcePosPretty srcPos) <> ":")
+    errText PackageErrorInfo{..} =
+      (pure $ "Package at " <> (Text.pack $ MP.sourcePosPretty srcPos) <> ":")
       <> indent 2 (fmap convErrText convErrs)
     convErrText = \case
       (File.MissingField t) -> "Field " <> qu t <> " is missing."
@@ -81,7 +85,7 @@ prettyLockfileError = \case
 
 -- helpers
 astParse :: FilePath -> Text -> Either LockfileError [Parse.Package]
-astParse fp = first (ParseError . toS . MP.errorBundlePretty)
+astParse fp = first (ParseError . Text.pack . MP.errorBundlePretty)
                 . MP.parse Parse.packageList fp
 
 toPackages :: [Parse.Package] -> Either LockfileError [T.Keyed T.Package]

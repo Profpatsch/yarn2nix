@@ -21,7 +21,6 @@ dependencies:
   - containers
   - text
   - megaparsec >= 7 && < 10
-  - protolude >= 0.2 && < 0.4
   - either >= 4 && < 6
 
 library:
@@ -39,5 +38,4 @@ tests:
       - tasty-hunit >= 0.9
       - tasty-quickcheck >= 0.8
       - quickcheck-instances == 0.3.*
-      - protolude
       - neat-interpolation >= 0.3

@@ -1,7 +1,6 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell, NamedFieldPuns, ViewPatterns, NoImplicitPrelude, LambdaCase, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, NamedFieldPuns, ViewPatterns, LambdaCase, RecordWildCards #-}
 module TestFile (tests) where
 
-import Protolude
 import qualified Data.List.NonEmpty as NE
 import Test.Tasty (TestTree)
 import Test.Tasty.TH
@@ -11,6 +10,9 @@ import qualified Data.Map.Strict as M
 import qualified Yarn.Lock.Types as T
 import qualified Yarn.Lock.File as File
 import qualified Yarn.Lock.Parse as Parse
+import Data.Text (Text)
+import Data.Functor ((<&>))
+import Control.Applicative (Alternative (empty))
 
 -- TODO: actually use somehow (apart from manual testing)
 -- The yarn.lock file should resolve each packageKey exactly once.
@@ -94,7 +96,7 @@ astToPackageSuccess :: Parse.PackageFields -> IO T.Package
 astToPackageSuccess ast = case File.astToPackage ast of
   (Left errs) -> do
      _ <- assertFailure ("should have succeded, but:\n" <> show errs)
-     panic "not reached"
+     error "not reached"
   (Right pkg) -> pure pkg
 
 astToPackageFailureWith :: (NE.NonEmpty File.ConversionError)
@@ -174,3 +176,6 @@ case_built = do
 tests :: TestTree
 tests = $(testGroupGenerator)
 
+
+orEmpty :: Alternative f => Bool -> a -> f a
+orEmpty b a = if b then pure a else empty

@@ -7,10 +7,11 @@ Stability : experimental
 -}
 module Yarn.Lock.Types where
 
-import Protolude hiding (try)
-import qualified Data.Text as T
 import qualified Data.MultiKeyedMap as MKM
 import qualified Data.List.NonEmpty as NE
+import Data.Data (Proxy (Proxy))
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 -- | Yarn lockfile.
 --
@@ -44,11 +45,11 @@ data PackageKeyName
 
 -- | Try to parse a string into a package key name (scoped or not).
 parsePackageKeyName :: Text -> Maybe PackageKeyName
-parsePackageKeyName n = case T.stripPrefix "@" n of
+parsePackageKeyName n = case Text.stripPrefix "@" n of
   Nothing -> Just $ SimplePackageKey n
-  Just sc -> case T.breakOn "/" sc of
+  Just sc -> case Text.breakOn "/" sc of
     (_, "") -> Nothing
-    (scope, pkg) -> Just $ ScopedPackageKey scope (T.drop 1 pkg)
+    (scope, pkg) -> Just $ ScopedPackageKey scope (Text.drop 1 pkg)
 
 -- | Something with a list of 'PackageKey's pointing to it.
 data Keyed a = Keyed (NE.NonEmpty PackageKey) a

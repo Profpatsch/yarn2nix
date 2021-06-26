@@ -27,7 +27,6 @@ module Data.MultiKeyedMap
 
 import qualified Data.Map.Strict as M
 import Data.Monoid (All(..))
-import Data.Semigroup ((<>))
 import Data.Foldable (foldl')
 import qualified Data.List.NonEmpty as NE
 import Data.Proxy (Proxy(..))

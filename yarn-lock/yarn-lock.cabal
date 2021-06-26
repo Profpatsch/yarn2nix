@@ -41,7 +41,6 @@ library
     , containers
     , either >=4 && <6
     , megaparsec >=7 && <10
-    , protolude >=0.2 && <0.4
     , text
   default-language: Haskell2010
 
@@ -63,7 +62,6 @@ test-suite yarn-lock-tests
     , either >=4 && <6
     , megaparsec >=7 && <10
     , neat-interpolation >=0.3
-    , protolude
     , quickcheck-instances ==0.3.*
     , tasty >=0.11
     , tasty-hunit >=0.9

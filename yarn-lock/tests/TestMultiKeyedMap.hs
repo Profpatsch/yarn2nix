@@ -1,7 +1,6 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell, QuasiQuotes, NamedFieldPuns, ViewPatterns, NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, QuasiQuotes, NamedFieldPuns, ViewPatterns #-}
 module TestMultiKeyedMap (tests) where
 
-import Protolude
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NE
 import Test.Tasty (TestTree)
@@ -10,6 +9,9 @@ import Test.Tasty.QuickCheck
 import Test.QuickCheck.Instances () -- orphans!
 
 import qualified Data.MultiKeyedMap as MKM
+import Data.Data (Proxy (Proxy))
+import Data.Function (on)
+import Data.Foldable (foldl')
 
 emptyMkm :: (Ord k) => MKM.MKMap k v
 emptyMkm = MKM.mkMKMap (Proxy :: Proxy Int)

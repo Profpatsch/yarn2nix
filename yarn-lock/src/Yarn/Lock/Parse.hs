@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, GeneralizedNewtypeDeriving, OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 {-|
 Module : Yarn.Lock.Parse
 Description : Parser for yarn.lock files
@@ -20,12 +20,11 @@ module Yarn.Lock.Parse
 , packageKeys
 ) where
 
-import Protolude hiding (try, some, many)
 import qualified Data.Char as Ch
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Map.Strict as M
-import Control.Monad (fail)
+import Control.Monad (void)
 
 import Text.Megaparsec as MP
 import qualified Text.Megaparsec.Char as MP
@@ -35,6 +34,10 @@ import qualified Text.Megaparsec.Char.Lexer as MPL
 -- import Data.Proxy (Proxy(..))
 
 import qualified Yarn.Lock.Types as YLT
+import Data.Text (Text)
+import Data.Void (Void)
+import Data.Map.Strict (Map)
+import qualified Data.Text as Text
 
 
 -- | We use a simple (pure) @Megaparsec@ parser.
@@ -130,7 +133,7 @@ packageKey separators = inString (pkgKey "\"")
     emptyKeyErr :: Text -> Parser a
     emptyKeyErr key = fail
       ("packagekey: package name can not be empty (is: "
-      <> toS key <> ")")
+      <> Text.unpack key <> ")")
 
     -- | Like 'T.breakOn', but drops the separator char.
     breakDrop :: Char -> Text -> (Text, Text)
@@ -141,7 +144,7 @@ packageKey separators = inString (pkgKey "\"")
     -- | Parses a (scoped) package key and throws an error if misformatted.
     scoped n = maybe
       (fail $ "packageKey: scoped variable must be of form @scope/package"
-           <> " (is: " <> toS n <> ")")
+           <> " (is: " <> Text.unpack n <> ")")
       pure $ YLT.parsePackageKeyName n
 
 -- | Either a simple or a nested field.
@@ -192,7 +195,7 @@ indentedFieldsWithHeader header = indentBlock $ do
     toPfs = PackageFields . M.fromList
 
 -- | Characters allowed in key symbols.
--- 
+--
 -- TODO: those are partly npm package names, so check the allowed symbols, too.
 --
 -- Update: npm doesn’t specify the package name format, at all.

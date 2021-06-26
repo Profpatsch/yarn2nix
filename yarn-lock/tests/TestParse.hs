@@ -1,7 +1,6 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell, QuasiQuotes, NamedFieldPuns, ViewPatterns, NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, QuasiQuotes, NamedFieldPuns, ViewPatterns #-}
 module TestParse (tests) where
 
-import Protolude
 import qualified Data.Map as Map
 import qualified Data.List.NonEmpty as NE
 import Test.Tasty (TestTree)
@@ -13,6 +12,9 @@ import qualified Data.Char as Ch
 
 import Yarn.Lock.Types
 import Yarn.Lock.Parse
+import Data.Text (Text)
+import qualified Data.Text as Text
+import Control.Monad (void)
 
 startComment :: Text
 startComment = [text|
@@ -71,13 +73,13 @@ case_nestedField = do
 
 case_NestedPackage :: Assertion
 case_NestedPackage = do
-  assertBool "there is unicode" (all Ch.isAscii (toS nestedPackageExample :: [Char]))
+  assertBool "there is unicode" (all Ch.isAscii (Text.unpack nestedPackageExample :: [Char]))
   parseSuccess packageEntry nestedPackageExample
     >>= \(Keyed _ (_, PackageFields fields)) -> do
       case Map.lookup "dependencies" fields of
         (Nothing) -> assertFailure "where’s the key"
         (Just (Left s)) -> do
-          assertFailure $ toS (s <> "should be a nested package")
+          assertFailure $ Text.unpack (s <> "should be a nested package")
         (Just (Right (PackageFields nested))) -> do
           assertEqual "nested keys" 4 $ length nested
           assertEqual "dep exists" (Just (Left "2.3.4"))
@@ -143,8 +145,8 @@ parseSuccess parser string = do
     (Left err) -> do
       _ <- assertFailure ("parse should succeed, but: \n"
                     <> MP.errorBundlePretty err
-                    <> "for input\n" <> toS string <> "\n\"")
-      panic "not reached"
+                    <> "for input\n" <> Text.unpack string <> "\n\"")
+      error "not reached"
 
 parseFailure :: Parser a -> Text -> IO ()
 parseFailure parser string = do

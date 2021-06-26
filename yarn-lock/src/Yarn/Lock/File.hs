@@ -12,7 +12,8 @@ and ultimately get a 'T.Lockfile'.
 (like for example sum types), so information like e.g.
 the remote type have to be inferred frome AST values.
 -}
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, ApplicativeDo, RecordWildCards, NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings, ApplicativeDo, RecordWildCards, NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase #-}
 module Yarn.Lock.File
 ( fromPackages
 , astToPackage
@@ -20,7 +21,6 @@ module Yarn.Lock.File
 , ConversionError(..)
 ) where
 
-import Protolude hiding (hash, getField)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import qualified Data.Text as Text
@@ -29,6 +29,13 @@ import qualified Data.Either.Validation as V
 import qualified Yarn.Lock.Parse as Parse
 import qualified Yarn.Lock.Types as T
 import qualified Data.MultiKeyedMap as MKM
+import Data.Text (Text)
+import Data.Bifunctor (first)
+import Control.Monad ((>=>))
+import Control.Applicative ((<|>))
+import Data.Maybe (fromMaybe)
+import Data.Either.Validation (Validation(Success, Failure))
+import Data.Traversable (for)
 
 -- | Press a list of packages into the lockfile structure.
 --
@@ -86,9 +93,11 @@ astToPackage = V.validationToEither . validate
           Nothing -> case mopt of
             Just opt -> Right opt
             Nothing  -> Left $ MissingField fieldName
-          Just val -> note
-            (WrongType { fieldName, fieldType = parserName typeParser })
-            $ parseField typeParser val
+          Just val ->
+            case parseField typeParser val of
+              Nothing -> Left
+                (WrongType { fieldName, fieldType = parserName typeParser })
+              Just a -> Right a
 
     -- | Parse a simple field to type 'Text'.
     text :: FieldParser Text
@@ -123,9 +132,13 @@ astToPackage = V.validationToEither . validate
         $ checkGit <|> checkFileLocal <|> checkFile
       where
         mToV :: e -> Maybe a -> V.Validation e a
-        mToV err = V.eitherToValidation . note err
+        mToV err mb = case mb of
+          Nothing -> Failure err
+          Just a -> Success a
         vToM :: Val a -> Maybe a
-        vToM = hush . V.validationToEither
+        vToM = \case
+          Success a -> Just a
+          Failure _err -> Nothing
 
         -- | "https://blafoo.com/a/b#alonghash"
         --   -> ("https://blafoo.com/a/b", "alonghash")
@@ -135,7 +148,7 @@ astToPackage = V.validationToEither . validate
           [url']       -> (url', Nothing)
           [url', ""]   -> (url', Nothing)
           [url', hash] -> (url', Just hash)
-          _           -> panic "checkRemote: # should only appear exactly once!"
+          _           -> error "checkRemote: # should only appear exactly once!"
 
         checkGit :: Maybe T.Remote
         checkGit = do
@@ -172,4 +185,4 @@ astToPackage = V.validationToEither . validate
 
         -- | ensure the prefix is removed
         noPrefix :: Text -> Text -> Text
-        noPrefix pref hay = maybe hay identity $ Text.stripPrefix pref hay
+        noPrefix pref hay = fromMaybe hay $ Text.stripPrefix pref hay
