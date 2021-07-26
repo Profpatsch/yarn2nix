@@ -123,6 +123,11 @@ case_binPaths = do
             NP.bin
             (NP.BinFiles $ HML.fromList [ ("foopkg", "./abc") ])
 
+  parseZoom "scoped package"
+            (baseAnd [ ("name", "@foo/bar"), ("bin", "./abc") ])
+            NP.bin
+            (NP.BinFiles $ HML.fromList [ ("bar", "./abc") ])
+
   parseZoom ".directories.bin exists with path"
             (baseAnd [ ("directories", A.object [("bin", "./abc")]) ])
             NP.bin
