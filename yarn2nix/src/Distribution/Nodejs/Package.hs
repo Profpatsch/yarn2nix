@@ -11,6 +11,7 @@ module Distribution.Nodejs.Package
   -- * @package.json@ data
 , Package(..)
 , Bin(..), Man(..), Dependencies
+, parsePackageKeyName
 ) where
 
 import Protolude hiding (packageName)
@@ -24,6 +25,7 @@ import qualified System.FilePath as FP
 import Data.Aeson ((.:), (.:?), (.!=))
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as AT
+import qualified Yarn.Lock.Types as YLT
 
 -- | npm `package.json`. Not complete.
 --
@@ -148,7 +150,7 @@ instance A.FromJSON LoggingPackage where
               "`bin` and `directories.bin` must not exist at the same time, skipping."
           -- either "bin" is a direct path, then it’s linked to the package name
           (Just (A.String path),      _) -> pure $ BinFiles
-            $ HML.singleton packageName (toS path)
+            $ HML.singleton (parsePackageName packageName) (toS path)
           -- or it’s a map from names to paths
           (Just (A.Object bins),      _) -> lift $ BinFiles
             <$> traverse (A.withText "BinPath" (pure.toS)) bins
@@ -190,3 +192,17 @@ formatWarning = \case
          Nothing  -> "Leaving it out")
     <> "."
   (PlainWarning t) -> t
+
+-- | Parse a package name string into a 'YLT.PackageKeyName'.
+parsePackageKeyName :: Text -> YLT.PackageKeyName
+parsePackageKeyName k =
+  -- we don’t crash on a “wrong” package key to keep this
+  -- code pure, but assume it’s a simple key instead.
+  maybe (YLT.SimplePackageKey k) identity
+    $ YLT.parsePackageKeyName k
+
+parsePackageName :: Text -> Text
+parsePackageName k =
+  case parsePackageKeyName k of
+     YLT.SimplePackageKey n -> n
+     YLT.ScopedPackageKey _ n -> n

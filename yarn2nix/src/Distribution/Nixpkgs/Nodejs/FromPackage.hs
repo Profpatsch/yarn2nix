@@ -22,14 +22,7 @@ depsToPkgKeys :: NP.Dependencies -> [YLT.PackageKey]
 depsToPkgKeys = map toPkgKey . HML.toList
   where
     toPkgKey (k, v) =
-      YLT.PackageKey (parsePackageKeyName k) v
-
-parsePackageKeyName :: Text -> YLT.PackageKeyName
-parsePackageKeyName k =
-  -- we don’t crash on a “wrong” package key to keep this
-  -- code pure, but assume it’s a simple key instead.
-  maybe (YLT.SimplePackageKey k) identity
-    $ YLT.parsePackageKeyName k
+      YLT.PackageKey (NP.parsePackageKeyName k) v
 
 -- | generate a nix expression that translates your package.nix
 --
@@ -40,7 +33,7 @@ genTemplate licSet NP.Package{..} =
   simpleParamSet []
   ==> Param nodeDepsSym
   ==> (mkNonRecSet
-        [ "key" $= packageKeyToSet (parsePackageKeyName name)
+        [ "key" $= packageKeyToSet (NP.parsePackageKeyName name)
         , "version" $= mkStr version
         , "nodeBuildInputs"  $= (letE "a" (mkSym nodeDepsSym)
                                   $ mkList (map (pkgDep "a") depPkgKeys))
