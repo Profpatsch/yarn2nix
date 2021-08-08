@@ -1,20 +1,17 @@
 { mkDerivation, ansi-wl-pprint, base, containers, either, hpack
-, lib, megaparsec, neat-interpolation, protolude
-, quickcheck-instances, tasty, tasty-hunit, tasty-quickcheck
-, tasty-th, text
+, lib, megaparsec, neat-interpolation, quickcheck-instances, tasty
+, tasty-hunit, tasty-quickcheck, tasty-th, text
 }:
 mkDerivation {
   pname = "yarn-lock";
-  version = "0.6.4";
+  version = "0.6.5";
   src = ./.;
-  libraryHaskellDepends = [
-    base containers either megaparsec protolude text
-  ];
+  libraryHaskellDepends = [ base containers either megaparsec text ];
   libraryToolDepends = [ hpack ];
   testHaskellDepends = [
     ansi-wl-pprint base containers either megaparsec neat-interpolation
-    protolude quickcheck-instances tasty tasty-hunit tasty-quickcheck
-    tasty-th text
+    quickcheck-instances tasty tasty-hunit tasty-quickcheck tasty-th
+    text
   ];
   prePatch = "hpack";
   homepage = "https://github.com/Profpatsch/yarn2nix#readme";
