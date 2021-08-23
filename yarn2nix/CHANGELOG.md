@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 All changes are documented in more detail in their respective commit messages.
 
+## [0.9.0] - 2021-08-24
+
+### Added
+
+- `--offline` flag to abort if network would be required 
+
+  If `--offline` is given, yarn2nix will abort with an error message if
+  `nix-prefetch-git` would be necessary to use
+  (not all yarn.lock files can be converted to nix without network access)
+  
+- `--template`: add proper SPDX license to nix derivation
+
+  Converts the SPDX license to a nix library license,
+  so that the template has the correct license.
+  This could be extended to all node_module dependencies in the future.
+  
+### Fixed
+
+- Fix binary name for scoped packages
+
+  Fix short form of bin field (`"bin": "./path/to/bin"`) for scoped package
+  where the binary name should be the package name without scope
+  instead of the full name.
+
+  For example for @babel/parser it should generate a `.bin/parser` link
+  instead of a `.bin/@babel/parser` link.
+
+- Fix `--template` generation
+
+  Since d607336 buildNodePackage doesn't
+  accept a name argument anymore, but a key one. Due to an oversight in
+  that change yarn2nix --template would still generate name attributes
+  which causes buildNodePackage to fail if directly used with callTemplate
+  and an automatically generated template.
+
+- `node-package-tool`: default to no (dev) dependencies if field unparsable
+
+  In the node world you can't depend on anything, especially not that a
+  certain field of package.json is well-formed.
+
+  The dependencies field is sometimes malformed, probably in most cases it
+  is safe to default to {}. I have observed this in the wild with JSV 0.4.2
+  (https://github.com/garycourt/JSV) where dependencies is [] instead of
+  {} or being missing. I think packages with malformed dependency field
+  can't reasonably expect their dependencies to be installed correctly.
+
+  We only default to {} in cases where we can expect beyond a reasonable
+  doubt that there are no dependencies being expressed by the field:
+
+  - Empty array
+  - Scalars (Number, String, …)
+
+  We fail parsing if the field is malformed and seems to contain
+  something:
+
+  - Non-empty array
+  - Object that can't be parsed to Dependencies (i. e. is malformed)
+
+  We use this strategy for both dependencies and devDependencies.
+  
+- `node-package-tool`: create target directory if it doesn’t exist
+
+  Apparently some namespaced packages have binaries which live in a
+  subdirectory. This would previously crash the build.
+
 ## [0.8.0] - 2019-12-22
 
 ### Added

@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ef678875658edbbf37e1e30d78b959fc9d63bd81de97bc863b8ee9cca1611f73
+-- hash: b38fd291d794cc2a0638e0fcc468cc1e60f91bd1382010f8dca224046fc44637
 
 name:           yarn2nix
-version:        0.8.0
+version:        0.9.0
 synopsis:       Convert yarn.lock files to nix expressions
 description:    Convert @yarn.lock@ files to nix expressions. See @yarn2nix@ executable. Contains a nix library to call the generated nix files in @nix-lib/@. Library functions and module names might be restructured in the future.
 category:       Distribution, Nix
