@@ -9,7 +9,6 @@ where
 
 import Protolude
 import qualified Data.ByteString.Lazy as BL
-import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Options.Applicative as O
@@ -29,6 +28,7 @@ import qualified Distribution.Nixpkgs.Nodejs.ResolveLockfile as Res
 import qualified Distribution.Nodejs.Package as NP
 import qualified Distribution.Nixpkgs.Nodejs.License as NodeL
 import Distribution.Nixpkgs.Nodejs.RunConfig
+
 
 description :: O.InfoMod a
 description = O.fullDesc
@@ -80,14 +80,20 @@ runAction cfg = do
       case YL.parse path fc of
         Right yarnfile  -> toStdout cfg yarnfile
         Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)
+
     parseNode :: FilePath -> IO ()
     parseNode path = do
       NP.decode <$> BL.readFile path >>= \case
         Right (NP.LoggingPackage (nodeModule, warnings)) -> do
           for_ warnings $ TIO.hPutStrLn stderr . NP.formatWarning
-          licenseSet <- catchCouldNotOpen (fromJust $ runLicensesJson cfg)
-            . fmap join . sequence
-            $ (BL.readFile >=> pure . NodeL.decode) <$> runLicensesJson cfg
+
+          licenseSet <- case cfg & runLicensesJson of
+            Nothing -> pure Nothing
+            Just licensesJson -> do
+              catchCouldNotOpen licensesJson
+                (BL.readFile licensesJson)
+                <&> NodeL.decode
+
           print $ NixP.prettyNix $ NodeFP.genTemplate licenseSet nodeModule
         Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)
     catchCouldNotOpen :: FilePath -> IO a -> IO a
@@ -122,7 +128,7 @@ runConfigParser = RunConfig
 runConfigParserWithHelp :: O.ParserInfo RunConfig
 runConfigParserWithHelp =
   O.info (runConfigParser <**> O.helper) description
- 
+
 die' :: Text -> IO a
 die' err = putErrText err *> exitFailure
 

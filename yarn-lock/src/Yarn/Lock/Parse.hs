@@ -25,19 +25,17 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Map.Strict as M
 import Control.Monad (void)
-
-import Text.Megaparsec as MP
+import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Char as MP
 import qualified Text.Megaparsec.Char.Lexer as MPL
-
--- import qualified Data.MultiKeyedMap as MKM
--- import Data.Proxy (Proxy(..))
-
 import qualified Yarn.Lock.Types as YLT
 import Data.Text (Text)
 import Data.Void (Void)
 import Data.Map.Strict (Map)
 import qualified Data.Text as Text
+import Text.Megaparsec (Parsec, Stream (Tokens), (<?>))
+import Text.Megaparsec.Pos (SourcePos)
+import Control.Applicative ((<|>))
 
 
 -- | We use a simple (pure) @Megaparsec@ parser.
@@ -60,10 +58,10 @@ type Package = YLT.Keyed (SourcePos, PackageFields)
 -- | Parse a complete yarn.lock into an abstract syntax tree,
 -- keeping the source positions of each package entry.
 packageList :: Parser [Package]
-packageList = MP.many $ (skipMany (comment <|> MP.string "\n")) *> packageEntry
+packageList = MP.many $ (MP.skipMany (comment <|> MP.string "\n")) *> packageEntry
                 where
                   comment :: Parser (Tokens Text)
-                  comment = MP.char '#' *> takeWhileP Nothing (/= '\n')
+                  comment = MP.char '#' *> MP.takeWhileP Nothing (/= '\n')
 
 -- | A single Package.
 --
@@ -82,8 +80,8 @@ packageList = MP.many $ (skipMany (comment <|> MP.string "\n")) *> packageEntry
 --     "
 -- @
 packageEntry :: Parser (YLT.Keyed (SourcePos, PackageFields))
-packageEntry = label "package entry" $ do
-  pos <- getSourcePos
+packageEntry = MP.label "package entry" $ do
+  pos <- MP.getSourcePos
   -- A package entry is a non-indented
   (keys, pkgs) <- nonIndented
             -- block that has a header of package keys
@@ -97,8 +95,8 @@ packageEntry = label "package entry" $ do
 -- align-text@^0.1.1, align-text@^0.1.3:\\n
 -- @
 packageKeys :: Parser (NE.NonEmpty YLT.PackageKey)
-packageKeys = label "package keys" $ do
-  firstEls <- many (try $ lexeme $ packageKey ":," <* MP.char ',')
+packageKeys = MP.label "package keys" $ do
+  firstEls <- MP.many (MP.try $ lexeme $ packageKey ":," <* MP.char ',')
   lastEl   <-                      packageKey ":"  <* MP.char ':'
   pure $ NE.fromList $ firstEls <> [lastEl]
 
@@ -113,7 +111,7 @@ packageKey separators = inString (pkgKey "\"")
          <?> "package key"
   where
     pkgKey :: [Char] -> Parser YLT.PackageKey
-    pkgKey valueChars = label "package key" $ do
+    pkgKey valueChars = MP.label "package key" $ do
       key <- someTextOf (MP.noneOf valueChars)
       -- okay, here’s the rub:
       -- `@` is used for separation, but package names can also
@@ -149,7 +147,7 @@ packageKey separators = inString (pkgKey "\"")
 
 -- | Either a simple or a nested field.
 field :: Parser (Text, Either Text PackageFields)
-field = try nested <|> simple <?> "field"
+field = MP.try nested <|> simple <?> "field"
   where
     simple = fmap Left <$> simpleField
     nested = fmap Right <$> nestedField
@@ -174,7 +172,7 @@ simpleField = (,) <$> lexeme (strSymbolChars <|> symbolChars)
 -- | Similar to a @simpleField@, but instead of a string
 -- we get another block with deeper indentation.
 nestedField :: Parser (Text, PackageFields)
-nestedField = label "nested field" $
+nestedField = MP.label "nested field" $
   indentedFieldsWithHeader (symbolChars <* MP.char ':')
 
 
@@ -203,7 +201,7 @@ indentedFieldsWithHeader header = indentBlock $ do
 -- Update: According to https://docs.npmjs.com/misc/scope
 -- the package name format is “URL-safe characters, no leading dots or underscores” TODO
 symbolChars :: Parser Text
-symbolChars = label "key symbol" $ someTextOf $ MP.satisfy
+symbolChars = MP.label "key symbol" $ someTextOf $ MP.satisfy
   (\c -> Ch.isAscii c &&
      (Ch.isLower c || Ch.isUpper c || Ch.isNumber c || c `elem` special))
   where special = "-_.@/" :: [Char]
@@ -212,11 +210,11 @@ symbolChars = label "key symbol" $ someTextOf $ MP.satisfy
 -- text versions of parsers & helpers
 
 someTextOf :: Parser Char -> Parser Text
-someTextOf c = T.pack <$> some c
+someTextOf c = T.pack <$> MP.some c
 
 -- | parse everything as inside a string
 inString :: Parser a -> Parser a
-inString = between (MP.char '"') (MP.char '"')
+inString = MP.between (MP.char '"') (MP.char '"')
 
 -- lexers
 

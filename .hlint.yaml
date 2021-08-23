@@ -1,0 +1,89 @@
+# HLint configuration file
+# https://github.com/ndmitchell/hlint
+# Run `hlint --default` to see the example configuration file.
+##########################
+
+# Ignore some builtin hints
+
+# often functions are more readable with explicit arguments
+- ignore: {name: Eta reduce}
+
+# these redundancy warnings are just completely irrelevant
+- ignore: {name: Redundant bracket}
+- ignore: {name: Move brackets to avoid $}
+- ignore: {name: Redundant $}
+- ignore: {name: Redundant do}
+- ignore: {name: Redundant pure}
+- ignore: {name: Redundant <&>}
+
+# allow case-matching on bool, because why not
+- ignore: {name: Use if}
+
+# hlint cannot distinguish actual newtypes from data types
+# that accidentally have only one field
+# (but might have more in the future).
+# Since it’s a mostly irrelevant runtime optimization, we don’t care.
+- ignore: {name: Use newtype instead of data}
+
+# these lead to harder-to-read/more implicit code
+- ignore: {name: Use fmap}
+- ignore: {name: Use tuple-section}
+- ignore: {name: Use fromMaybe}
+- ignore: {name: Use const}
+- ignore: {name: Replace case with maybe}
+- ignore: {name: Replace case with fromMaybe}
+- ignore: {name: Avoid lambda}
+- ignore: {name: Use curry}
+- ignore: {name: Use uncurry}
+
+# list comprehensions are a seldomly used part of the Haskell language
+# and they introduce syntactic overhead that is usually not worth the conciseness
+- ignore: {name: Use list comprehension}
+
+# multiple maps in a row are usually used for clarity,
+# and the compiler will optimize them away, thank you very much.
+- ignore: {name: Use map once}
+- ignore: {name: Fuse mapMaybe/map}
+
+# this is silly, why would I use a special function if I can just (heh) `== Nothing`
+- ignore: {name: Use isNothing}
+
+# The duplication heuristic is not very smart
+# and more annoying than helpful.
+# see https://github.com/ndmitchell/hlint/issues/1009
+- ignore: {name: Reduce duplication}
+
+# Stops the pattern match trick
+- ignore: {name: Use record patterns}
+- ignore: {name: Use null}
+- ignore: {name: Use uncurry}
+
+# we don’t want void, see below
+- ignore: {name: Use void}
+
+- functions:
+
+  # disallow Enum instance functions, they are partial
+  - {name: succ, within: [Relude.Extra.Enum]}
+  - {name: pred, within: [Relude.Extra.Enum]}
+  - {name: toEnum, within: []}
+  - {name: fromEnum, within: []}
+  - {name: enumFrom, within: []}
+  - {name: enumFromThen, within: []}
+  - {name: enumFromThenTo, within: []}
+  - {name: BoundedEnumFrom, within: []}
+  - {name: BoundedEnumFromThen, within: []}
+
+  # if you want to use randomIO, make sure to add a TypeApplication
+  # and create a small helper function in a specialized module,
+  # then add that module to this list.
+  - {name: randomIO, within: []}
+
+  # `void` discards its argument and is polymorphic,
+  # thus making it brittle in the face of code changes.
+  # (see https://tech.freckle.com/2020/09/23/void-is-a-smell/)
+  # Use an explicit `_ <- …` instead.
+  - {name: void, within: []}
+
+# Make restricted functions into an error if found
+- error: {name: Avoid restricted function, see comment in .hlint.yaml}
