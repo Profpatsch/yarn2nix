@@ -196,10 +196,11 @@ formatWarning = \case
 -- | Parse a package name string into a 'YLT.PackageKeyName'.
 parsePackageKeyName :: Text -> YLT.PackageKeyName
 parsePackageKeyName k =
-  -- we don’t crash on a “wrong” package key to keep this
-  -- code pure, but assume it’s a simple key instead.
-  maybe (YLT.SimplePackageKey k) identity
-    $ YLT.parsePackageKeyName k
+  case YLT.parsePackageKeyName k of
+    -- we don’t crash on a “wrong” package key to keep this
+    -- code pure, but assume it’s a simple key instead.
+    Nothing -> (YLT.SimplePackageKey k)
+    Just pkn -> pkn
 
 parsePackageName :: Text -> Text
 parsePackageName k =

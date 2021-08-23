@@ -150,7 +150,9 @@ values (MKMap _ _ valMap) = M.elems valMap
 -- singleton key is added.
 insert :: (Ord k) => k -> v -> MKMap k v -> MKMap k v
 insert k v m@MKMap{keyMap, highestIk, valMap} =
-  maybe ins upd $ M.lookup k keyMap
+  case M.lookup k keyMap of
+    Nothing -> ins
+    Just ik -> upd ik
   where
     ins = newVal (pure k) v m
     upd ik = MKMap { keyMap, highestIk, valMap = M.insert ik v valMap }

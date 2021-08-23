@@ -33,7 +33,6 @@ import Data.Text (Text)
 import Data.Bifunctor (first)
 import Control.Monad ((>=>))
 import Control.Applicative ((<|>))
-import Data.Maybe (fromMaybe)
 import Data.Either.Validation (Validation(Success, Failure))
 import Data.Traversable (for)
 
@@ -185,4 +184,6 @@ astToPackage = V.validationToEither . validate
 
         -- | ensure the prefix is removed
         noPrefix :: Text -> Text -> Text
-        noPrefix pref hay = fromMaybe hay $ Text.stripPrefix pref hay
+        noPrefix pref hay = case Text.stripPrefix pref hay of
+          Nothing -> hay
+          Just t -> t

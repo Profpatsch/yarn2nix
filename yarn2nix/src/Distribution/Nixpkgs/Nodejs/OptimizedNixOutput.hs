@@ -262,7 +262,9 @@ mkPackageSet packages =
     mkShortcut (nSyms, short) = unNSym short $= concatNSyms nSyms
     -- | Try to shorten sym, otherwise use input.
     shorten :: [NSym] -> NExpr
-    shorten s = maybe (concatNSyms s) (N.mkSym . unNSym) $ M.lookup s shortcuts
+    shorten s = case M.lookup s shortcuts of
+      Nothing -> concatNSyms s
+      Just sc -> N.mkSym (unNSym sc)
     -- | Build function boilerplate the build functions share in common.
     buildPkgFnGeneric :: [Text] -> NExpr -> NExpr
     buildPkgFnGeneric additionalArguments srcNExpr =
