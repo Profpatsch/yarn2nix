@@ -36,7 +36,6 @@ import Data.Proxy (Proxy(..))
 import qualified Data.Tuple as Tuple
 import GHC.Stack (HasCallStack)
 import qualified Text.Show as Show
-import GHC.Generics (V1)
 
 -- TODO: add time behaviour of functions to docstrings
 
