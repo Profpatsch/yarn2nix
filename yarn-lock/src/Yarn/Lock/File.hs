@@ -131,7 +131,7 @@ astToPackage pkgKeys = V.validationToEither . validate
     checkRemote :: Parse.PackageFields -> Val T.Remote
     checkRemote fs =
       -- any error is replaced by the generic remote error
-      mToV (pure $ UnknownRemoteType)
+      mToV (pure UnknownRemoteType)
         -- implementing the heuristics of searching for types;
         -- it should of course not lead to false positives
         -- see tests/TestLock.hs
