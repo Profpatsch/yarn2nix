@@ -1,0 +1,12 @@
+builddir = .ninja
+
+rule hpack
+  command = hpack $in
+
+build all : phony prebuild
+
+build prebuild : phony yarn-lock/yarn-lock.cabal yarn2nix/yarn2nix.cabal
+
+build yarn-lock/yarn-lock.cabal : hpack yarn-lock/package.yaml
+
+build yarn2nix/yarn2nix.cabal : hpack yarn2nix/package.yaml

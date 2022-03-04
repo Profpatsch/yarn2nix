@@ -37,6 +37,7 @@ in
     ];
     withHoogle = true;
     buildInputs = [
+      pkgs.ninja
       pkgs.cabal-install
       pkgs.hpack
       pkgs.ghcid

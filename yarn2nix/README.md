@@ -120,6 +120,6 @@ for instructions.
 
 ```
 $ nix-shell
-nix-shell> hpack
+nix-shell> ninja
 nix-shell> cabal build yarn2nix
 ```
