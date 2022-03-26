@@ -43,7 +43,7 @@ genTemplate licSet NP.Package{..} =
                                   $ mkList (map (pkgDep "a") depPkgKeys))
         , "meta"      $= (mkNonRecSet
            $ attrSetMayStr "description" description
-          <> attrSetMay    "license" (NL.nodeLicenseToNixpkgs license licSet)
+          <> attrSetMay    "license" (NL.nodeLicenseToNixpkgs <$> license <*> licSet)
           <> attrSetMayStr "homepage" homepage)
         ])
   where

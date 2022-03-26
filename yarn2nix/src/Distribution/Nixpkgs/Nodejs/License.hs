@@ -101,12 +101,13 @@ nixpkgsLicenseExpression (NixpkgsLicense{..}) = mkNonRecSet $
 --
 --   See <https://docs.npmjs.com/files/package.json#license> for
 --   details on npm's @license@ field.
-nodeLicenseToNixpkgs :: Maybe Text -> Maybe LicensesBySpdxId -> Maybe NExpr
+nodeLicenseToNixpkgs :: Text -> LicensesBySpdxId -> NExpr
 nodeLicenseToNixpkgs nodeLicense licSet = do
-  id <- nodeLicense
-  if id == "UNLICENSED"
-    then pure $ nixpkgsLicenseExpression unfreeLicense
-    else (lookupSpdxId id =<< licSet) <|> pure (mkStr id)
+  if nodeLicense == "UNLICENSED"
+    then nixpkgsLicenseExpression unfreeLicense
+    else case lookupSpdxId nodeLicense licSet of
+      Nothing -> mkStr nodeLicense
+      Just license -> license
 
 -- | Lookup function for 'LicensesBySpdxId' which directly returns a 'NExpr'.
 --   This function only looks up by SPDX identifier and does not take
