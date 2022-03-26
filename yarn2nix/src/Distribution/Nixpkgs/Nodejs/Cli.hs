@@ -17,7 +17,7 @@ import qualified System.Directory as Dir
 import System.Environment (getProgName)
 
 import qualified Nix.Pretty as NixP
-import qualified Data.Text.Prettyprint.Doc.Render.Text as RT
+import qualified Prettyprinter.Render.Text as RT
 import qualified Yarn.Lock as YL
 import qualified Yarn.Lock.Types as YLT
 import qualified Yarn.Lock.Helpers as YLH
@@ -27,7 +27,7 @@ import qualified Distribution.Nixpkgs.Nodejs.FromPackage as NodeFP
 import qualified Distribution.Nixpkgs.Nodejs.ResolveLockfile as Res
 import qualified Distribution.Nodejs.Package as NP
 import qualified Distribution.Nixpkgs.Nodejs.License as NodeL
-import Distribution.Nixpkgs.Nodejs.RunConfig
+import Distribution.Nixpkgs.Nodejs.ResolveLockfile (ResolverConfig(ResolverConfig, resolveOffline))
 
 
 description :: O.InfoMod a
@@ -48,6 +48,31 @@ description = O.fullDesc
 -- | Main entry point for @yarn2nix@.
 cli :: IO ()
 cli = parseOpts >>= runAction
+
+-- | Type of action @yarn2nix@ is performing.
+data RunMode
+  = YarnLock     -- ^ Output a nix expression for a @yarn.lock@
+  | NodeTemplate -- ^ Output a nix template corresponding to a @package.json@
+  deriving (Show, Eq)
+
+-- | Runtime configuration of @yarn2nix@. Typically this is determined from
+--   its command line arguments and valid for the current invocation only.
+data RunConfig
+  = RunConfig
+  { runMode         :: RunMode
+  , runOffline      :: Bool            -- ^ If @True@, @yarn2nix@ will fail if it
+                                       --   requires network access. Currently this means
+                                       --   'Distribution.Nixpkgs.Nodejs.ResolveLockfile.resolveLockfileStatus'
+                                       --   will throw an error in case resolving a hash
+                                       --   requires network access.
+  , runLicensesJson :: Maybe FilePath  -- ^ Optional Path to a licenses.json file
+                                       --   equivalent to the lib.licenses set from
+                                       --   @nixpkgs@.
+  , runInputFile    :: Maybe FilePath  -- ^ File to process. If missing the appropriate
+                                       --   file for the current mode from the current
+                                       --   working directory is used.
+  } deriving (Show, Eq)
+
 
 fileFor :: RunConfig -> Text
 fileFor cfg =
@@ -150,7 +175,10 @@ toStdout cfg lf = do
   --   readChan ch >>= \case
   --     FileRemote{..} -> pass
   --     GitRemote{..} -> print $ "Downloading " <> gitRepoUrl
-  lf' <- Res.resolveLockfileStatus cfg ch (YLH.decycle lf) >>= \case
+  let resolverConfig = ResolverConfig {
+    resolveOffline = cfg & runOffline
+   }
+  lf' <- Res.resolveLockfileStatus resolverConfig ch (YLH.decycle lf) >>= \case
     Left err -> die' (T.intercalate "\n" $ toList err)
     Right res -> pure res
   -- killThread thrd

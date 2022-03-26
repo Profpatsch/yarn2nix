@@ -3,8 +3,6 @@ cabal-version: 1.12
 -- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: b304d03c01a705e9536cc01539680ce44127c073c43b37a4c4f95f33027512f4
 
 name:           yarn2nix
 version:        0.9.0
@@ -35,7 +33,6 @@ library
       Distribution.Nixpkgs.Nodejs.License
       Distribution.Nixpkgs.Nodejs.OptimizedNixOutput
       Distribution.Nixpkgs.Nodejs.ResolveLockfile
-      Distribution.Nixpkgs.Nodejs.RunConfig
       Distribution.Nixpkgs.Nodejs.Utils
       Distribution.Nodejs.Package
       Nix.Expr.Additions
