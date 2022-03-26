@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, DeriveGeneric, OverloadedStrings, RecordWildCards, LambdaCase, TypeApplications #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RecordWildCards, LambdaCase, TypeApplications #-}
 {-|
 Description: Parse and make sense of npm’s @package.json@ project files
 
@@ -19,13 +19,15 @@ import Control.Monad (fail)
 import qualified Control.Monad.Writer.Lazy as WL
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
-import qualified Data.HashMap.Lazy as HML
 import qualified System.FilePath as FP
 
-import Data.Aeson ((.:), (.:?), (.!=))
+import Data.Aeson ((.:), (.:?), (.!=), Key)
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as AT
 import qualified Yarn.Lock.Types as YLT
+import qualified Data.Aeson.Key as Key
+import Data.Aeson.KeyMap (KeyMap)
+import qualified Data.Aeson.KeyMap as KeyMap
 
 -- | npm `package.json`. Not complete.
 --
@@ -36,7 +38,7 @@ data Package = Package
   , description :: Maybe Text
   , homepage :: Maybe Text
   , private :: Bool
-  , scripts :: HML.HashMap Text Text
+  , scripts :: KeyMap Text
   , bin :: Bin
   , man :: Man
   , license :: Maybe Text
@@ -59,7 +61,7 @@ data Warning
 
 -- | The package’s executable files.
 data Bin
-  = BinFiles (HML.HashMap Text FilePath)
+  = BinFiles (KeyMap FilePath)
   -- ^ map of files from name to their file path (relative to package path)
   | BinFolder FilePath
   -- ^ a folder containing all executable files of the project (also relative)
@@ -67,12 +69,12 @@ data Bin
 
 -- | The package’s manual files.
 data Man
-  = ManFiles (HML.HashMap Text FilePath)
+  = ManFiles (KeyMap FilePath)
   -- ^ map of files from name to their file path (relative to package path)
   deriving (Show, Eq)
 
 -- | Dependencies of a package.
-type Dependencies = HML.HashMap Text Text
+type Dependencies = KeyMap Text
 
 type Warn = WL.WriterT [Warning] AT.Parser
 putWarning :: a -> Warning -> Warn a
@@ -86,10 +88,10 @@ instance A.FromJSON LoggingPackage where
       l :: AT.Parser a -> Warn a
       l = WL.WriterT . fmap (\a -> (a, []))
       tryWarn :: (AT.FromJSON a, Show a)
-              => Text -> a -> Warn a
+              => AT.Key -> a -> Warn a
       tryWarn field def =
         lift (v .:? field .!= def)
-        <|> putWarning def (WrongType { wrongTypeField = field
+        <|> putWarning def (WrongType { wrongTypeField = field & Key.toText
                                        , wrongTypeDefault = Just (show def) })
     name            <- l $ v .:  "name"
     version         <- l $ v .:  "version"
@@ -127,15 +129,15 @@ instance A.FromJSON LoggingPackage where
           -- everything else defaults to mempty and generates a warning
           _ -> warn
 
-      parseMapText :: Text -> HML.HashMap Text AT.Value
-                   -> Warn (HML.HashMap Text Text)
+      parseMapText :: Text -> KeyMap AT.Value
+                   -> Warn (KeyMap Text)
       parseMapText fieldPath val =
-        HML.mapMaybe identity <$> HML.traverseWithKey tryParse val
+        KeyMap.mapMaybe identity <$> KeyMap.traverseWithKey tryParse val
         where
-          tryParse :: Text -> A.Value -> Warn (Maybe Text)
+          tryParse :: A.Key -> A.Value -> Warn (Maybe Text)
           tryParse key el = lift (Just <$> AT.parseJSON el)
             <|> putWarning Nothing
-                  (WrongType { wrongTypeField = fieldPath <> "." <> key
+                  (WrongType { wrongTypeField = fieldPath <> "." <> (key & Key.toText)
                              , wrongTypeDefault = Nothing })
       parseBin :: Text -> AT.Object -> Warn Bin
       parseBin packageName v = do
@@ -150,7 +152,7 @@ instance A.FromJSON LoggingPackage where
               "`bin` and `directories.bin` must not exist at the same time, skipping."
           -- either "bin" is a direct path, then it’s linked to the package name
           (Just (A.String path),      _) -> pure $ BinFiles
-            $ HML.singleton (parsePackageName packageName) (toS path)
+            $ KeyMap.singleton (parsePackageName packageName & Key.fromText) (toS path)
           -- or it’s a map from names to paths
           (Just (A.Object bins),      _) -> lift $ BinFiles
             <$> traverse (A.withText "BinPath" (pure.toS)) bins
@@ -165,15 +167,15 @@ instance A.FromJSON LoggingPackage where
       -- TODO: parsing should be as thorough as with "bin"
       parseMan name v = do
         let getMan f = ManFiles . f <$> v .: "man"
-            extractName :: FilePath -> (Text, FilePath)
+            extractName :: FilePath -> (Key, FilePath)
             extractName file =
               let f = T.pack $ FP.takeFileName file
               in if name `T.isPrefixOf` f
-                  then (name, file)
-                  else (name <> "-" <> f, file)
+                  then (Key.fromText name, file)
+                  else (Key.fromText $ name <> "-" <> f, file)
         -- TODO: handle directories.man
-        (getMan (HML.fromList . map extractName)
-            <|> getMan (HML.fromList . (:[]) . extractName)
+        (getMan (KeyMap.fromList . map extractName)
+            <|> getMan (KeyMap.fromList . (:[]) . extractName)
             <|> pure (ManFiles mempty))
 
 -- | Convenience decoding function.

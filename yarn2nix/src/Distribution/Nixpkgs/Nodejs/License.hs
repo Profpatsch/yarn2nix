@@ -20,10 +20,11 @@ import Data.Aeson ((.:), (.:?), (.!=))
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as AT
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.HashMap.Strict as HMS
 import qualified Data.HashMap.Lazy as HML
 import Nix.Expr
 import Distribution.Nixpkgs.Nodejs.Utils (attrSetMay, attrSetMayStr)
+import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.Aeson.Key as Key
 
 -- newtype to circumvent the default instance: we don't want
 -- the key of the JSON object to be the key of the HashMap,
@@ -65,9 +66,9 @@ unfreeLicense = NixpkgsLicense
 
 instance A.FromJSON LicensesBySpdxId where
   parseJSON = A.withObject "NixpkgsLicenseSet" $
-    HMS.foldrWithKey (\k v p -> p >>= addNixpkgsLicense k v) (pure mempty)
+    KeyMap.foldrWithKey (\k v p -> p >>= addNixpkgsLicense k v) (pure mempty)
 
-addNixpkgsLicense :: Text -> AT.Value -> LicensesBySpdxId -> AT.Parser LicensesBySpdxId
+addNixpkgsLicense :: AT.Key -> AT.Value -> LicensesBySpdxId -> AT.Parser LicensesBySpdxId
 addNixpkgsLicense attr val lics = do
   license <- A.withObject "NixpkgsLicense" parseLicense val
   let (LicensesBySpdxId licsMap) = lics
@@ -76,8 +77,8 @@ addNixpkgsLicense attr val lics = do
     Nothing -> pure lics
     Just i -> pure $ LicensesBySpdxId $ HML.insert i license licsMap
   where parseLicense v = NixpkgsLicense
-          <$> pure attr
-          <*> v .:? "shortName" .!= attr
+          <$> pure (attr & Key.toText)
+          <*> v .:? "shortName" .!= (attr & Key.toText)
           <*> v .:? "spdxId"
           <*> v .:  "fullName"
           <*> v .:? "url"

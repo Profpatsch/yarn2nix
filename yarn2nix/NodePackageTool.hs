@@ -6,13 +6,14 @@ import qualified Control.Monad.Except as ExcT
 import qualified Control.Exception as Exc
 import qualified System.IO.Error as IOErr
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.HashMap.Lazy as HML
 import qualified System.FilePath as FP
 import qualified System.Directory as Dir
 import qualified System.Posix.Files as PosixFiles
 import Options.Applicative
 
 import qualified Distribution.Nodejs.Package as NP
+import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.Aeson.Key as Key
 
 data Args
   = Args
@@ -45,7 +46,7 @@ args = subparser
         <> metavar "LINK_TARGET"
         <> help "folder to link to (absolute or relative from package folder)" )
     setBinExecFlagSubcommands = pure SetBinExecFlag
-  
+
 
 type ErrorLogger = ExceptT [Char] IO
 
@@ -116,7 +117,7 @@ realMain Args{..} = do
     readBinFiles :: NP.Bin -> ErrorLogger [(Text, FilePath)]
     readBinFiles bin = case bin of
       -- files with names how they should be linked
-      (NP.BinFiles bs) -> pure $ HML.toList bs
+      (NP.BinFiles bs) -> pure $ (bs & KeyMap.toList <&> first Key.toText)
       -- a whole folder where everything should be linked
       (NP.BinFolder bf) -> do
         dirM <- liftIO $ tryAccess (Dir.listDirectory bf)

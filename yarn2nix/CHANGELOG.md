@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 All changes are documented in more detail in their respective commit messages.
 
+## [0.10.0] - 2022-03-26
+
+- Support `aeson-2.0`, requires GHC `9.0`
+
+  Add support for the new `aeson-2.0` API,
+  but do not make it backward compatible with `1.x`.
+  
+  Since nixpkgs is going to fast-forward to 9.x soon, this should not be a problem.
+  If it is, conditional support for `aeson-1.x` could be added later.
+  
+  Since this might be a breaking deal for some, we mark it as breaking change.
+  
+
 ## [0.9.0] - 2021-08-24
 
 ### Added

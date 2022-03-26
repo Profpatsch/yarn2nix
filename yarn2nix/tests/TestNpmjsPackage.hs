@@ -10,10 +10,11 @@ import qualified Test.Tasty.HUnit as HUnit
 
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as AT
-import qualified Data.HashMap.Lazy as HML
 import qualified Data.Text as Text
 
 import qualified Distribution.Nodejs.Package as NP
+import qualified Data.Aeson.KeyMap as KeyMap
+import Data.Aeson (Key)
 
 assertEqual :: (HasCallStack, Eq a, Show a) => Text -> a -> a -> Assertion
 assertEqual t a b = HUnit.assertEqual (toS t) a b
@@ -21,8 +22,8 @@ assertEqual t a b = HUnit.assertEqual (toS t) a b
 assertBool :: (HasCallStack) => Text -> Bool -> Assertion
 assertBool t b = HUnit.assertBool (toS t) b
 
-baseAnd :: [(Text, A.Value)] -> A.Value
-baseAnd fields = A.Object $ HML.fromList $
+baseAnd :: [(Key, A.Value)] -> A.Value
+baseAnd fields = A.Object $ KeyMap.fromList $
   [ ("name", "foopkg")
   , ("version", "1.0.2")
   ] <> fields
@@ -41,7 +42,7 @@ formatWarnings :: [NP.Warning] -> Text
 formatWarnings ws = Text.intercalate ", " (map f ws)
   where
     f w@(NP.PlainWarning _) = "PlainWarning `" <> NP.formatWarning w <> "`"
-    f w@(NP.WrongType {..}) = "WrongType `" <> NP.formatWarning w <> "`"
+    f w@(NP.WrongType {}) = "WrongType `" <> NP.formatWarning w <> "`"
 
 parseZoom :: (Eq a, Show a)
           => Text -> A.Value -> (NP.Package -> a) -> a
@@ -93,7 +94,7 @@ case_dependencies = do
                        [ ("foo", "1.2.3")
                        , ("bar", "3.4.0") ]) ])
             NP.dependencies
-            (HML.fromList
+            (KeyMap.fromList
               [ ("foo", "1.2.3")
               , ("bar", "3.4.0") ])
 
@@ -121,12 +122,12 @@ case_binPaths = do
   parseZoom ".bin exists with files"
             (baseAnd [ ("bin", "./abc") ])
             NP.bin
-            (NP.BinFiles $ HML.fromList [ ("foopkg", "./abc") ])
+            (NP.BinFiles $ KeyMap.fromList [ ("foopkg", "./abc") ])
 
   parseZoom "scoped package"
             (baseAnd [ ("name", "@foo/bar"), ("bin", "./abc") ])
             NP.bin
-            (NP.BinFiles $ HML.fromList [ ("bar", "./abc") ])
+            (NP.BinFiles $ KeyMap.fromList [ ("bar", "./abc") ])
 
   parseZoom ".directories.bin exists with path"
             (baseAnd [ ("directories", A.object [("bin", "./abc")]) ])
@@ -138,7 +139,7 @@ case_binPaths = do
                        [ ("one", "./bin/one")
                        , ("two", "imhere") ]) ])
             NP.bin
-            (NP.BinFiles $ HML.fromList
+            (NP.BinFiles $ KeyMap.fromList
               [ ("one", "./bin/one")
               , ("two", "imhere") ])
 
@@ -160,7 +161,7 @@ case_binPaths = do
                                    [ ("foo", A.object [])
                                    , ("bar", "imascript") ]) ])
                         NP.scripts
-                        (HML.fromList [ ("bar", "imascript") ])
+                        (KeyMap.fromList [ ("bar", "imascript") ])
                         (hasWarning (WrongTypeField
                            { wrongTypeField = "scripts.foo"
                            , wrongTypeDefault = Nothing }))

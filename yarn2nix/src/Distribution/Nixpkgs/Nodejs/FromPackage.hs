@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, DeriveGeneric, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RecordWildCards #-}
 {-|
 Description: Generate nix expression for 'NP.Package'
 -}
@@ -7,7 +7,6 @@ module Distribution.Nixpkgs.Nodejs.FromPackage
 ) where
 
 import Protolude
-import qualified Data.HashMap.Lazy as HML
 
 import Nix.Expr
 import Nix.Expr.Additions
@@ -16,10 +15,15 @@ import Distribution.Nixpkgs.Nodejs.Utils (packageKeyToSymbol, attrSetMayStr, att
 import qualified Distribution.Nodejs.Package as NP
 import qualified Distribution.Nixpkgs.Nodejs.License as NL
 import qualified Yarn.Lock.Types as YLT
-
+import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.Aeson.Key as Key
 
 depsToPkgKeys :: NP.Dependencies -> [YLT.PackageKey]
-depsToPkgKeys = map toPkgKey . HML.toList
+depsToPkgKeys deps =
+  deps
+  & KeyMap.toList
+  <&> first Key.toText
+  <&> toPkgKey
   where
     toPkgKey (k, v) =
       YLT.PackageKey (NP.parsePackageKeyName k) v
