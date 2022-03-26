@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase, NoImplicitPrelude #-}
+{-# LANGUAGE TypeApplications #-}
 {-|
 Description: command line interface
 -}
@@ -26,8 +27,9 @@ import qualified Distribution.Nixpkgs.Nodejs.OptimizedNixOutput as NixOut
 import qualified Distribution.Nixpkgs.Nodejs.FromPackage as NodeFP
 import qualified Distribution.Nixpkgs.Nodejs.ResolveLockfile as Res
 import qualified Distribution.Nodejs.Package as NP
-import qualified Distribution.Nixpkgs.Nodejs.License as NodeL
 import Distribution.Nixpkgs.Nodejs.ResolveLockfile (ResolverConfig(ResolverConfig, resolveOffline))
+import Distribution.Nixpkgs.Nodejs.License (LicensesBySpdxId)
+import qualified Data.Aeson as Json
 
 
 description :: O.InfoMod a
@@ -117,7 +119,7 @@ runAction cfg = do
             Just licensesJson -> do
               catchCouldNotOpen licensesJson
                 (BL.readFile licensesJson)
-                <&> NodeL.decode
+                <&> Json.decode @LicensesBySpdxId
 
           print $ NixP.prettyNix $ NodeFP.genTemplate licenseSet nodeModule
         Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)

@@ -9,8 +9,7 @@ module Distribution.Nixpkgs.Nodejs.License
   , NixpkgsLicense (..)
   , unfreeLicense
     -- * License Lookup Table
-  , decode
-  , LicensesBySpdxId (..)
+  , LicensesBySpdxId
   , lookupSpdxId
   ) where
 
@@ -19,7 +18,6 @@ import Protolude
 import Data.Aeson ((.:), (.:?), (.!=))
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Types as AT
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Lazy as HML
 import Nix.Expr
 import Distribution.Nixpkgs.Nodejs.Utils (attrSetMay, attrSetMayStr)
@@ -30,8 +28,6 @@ import qualified Data.Aeson.Key as Key
 -- the key of the JSON object to be the key of the HashMap,
 -- but one of its values (spdxId).
 -- | Lookup table from SPDX identifier (as 'Text') to 'NixpkgsLicense'.
---
---   Should be obtained using 'decode'.
 newtype LicensesBySpdxId
   = LicensesBySpdxId { unLicensesBySpdxId :: HML.HashMap Text NixpkgsLicense }
   deriving (Show, Eq, Semigroup, Monoid)
@@ -67,22 +63,22 @@ unfreeLicense = NixpkgsLicense
 instance A.FromJSON LicensesBySpdxId where
   parseJSON = A.withObject "NixpkgsLicenseSet" $
     KeyMap.foldrWithKey (\k v p -> p >>= addNixpkgsLicense k v) (pure mempty)
-
-addNixpkgsLicense :: AT.Key -> AT.Value -> LicensesBySpdxId -> AT.Parser LicensesBySpdxId
-addNixpkgsLicense attr val lics = do
-  license <- A.withObject "NixpkgsLicense" parseLicense val
-  let (LicensesBySpdxId licsMap) = lics
-  -- insert if it has an spdxId, otherwise just return lics
-  case spdxId license of
-    Nothing -> pure lics
-    Just i -> pure $ LicensesBySpdxId $ HML.insert i license licsMap
-  where parseLicense v = NixpkgsLicense
-          <$> pure (attr & Key.toText)
-          <*> v .:? "shortName" .!= (attr & Key.toText)
-          <*> v .:? "spdxId"
-          <*> v .:  "fullName"
-          <*> v .:? "url"
-          <*> v .:? "free"
+    where
+      addNixpkgsLicense :: AT.Key -> AT.Value -> LicensesBySpdxId -> AT.Parser LicensesBySpdxId
+      addNixpkgsLicense attr val lics = do
+        license <- A.withObject "NixpkgsLicense" parseLicense val
+        let (LicensesBySpdxId licsMap) = lics
+        -- insert if it has an spdxId, otherwise just return lics
+        case spdxId license of
+          Nothing -> pure lics
+          Just i -> pure $ LicensesBySpdxId $ HML.insert i license licsMap
+        where parseLicense v = NixpkgsLicense
+                <$> pure (attr & Key.toText)
+                <*> v .:? "shortName" .!= (attr & Key.toText)
+                <*> v .:? "spdxId"
+                <*> v .:  "fullName"
+                <*> v .:? "url"
+                <*> v .:? "free"
 
 -- | Build nix attribute set for given 'NixpkgsLicense'.
 --
@@ -121,10 +117,3 @@ nodeLicenseToNixpkgs nodeLicense licSet = do
 lookupSpdxId :: Text -> LicensesBySpdxId -> Maybe NExpr
 lookupSpdxId lic licSet =
   nixpkgsLicenseExpression <$> HML.lookup lic (unLicensesBySpdxId licSet)
-
--- | Build lookup table from a @licenses.json@ file which has been
---   built by @writeText "licenses.json" (builtins.toJSON lib.licenses)@.
---
---   Reexport from aeson.
-decode :: BL.ByteString -> Maybe LicensesBySpdxId
-decode = A.decode
