@@ -88,17 +88,24 @@ let
       })]))
     (it "checks license conversion"
       (builtins.map
-        (v: assertEq v.spdx (spdxLicenseSet v.spdx) v.set)
-        (with pkgs.lib.licenses; [
-          { spdx = "AGPL-3.0-only"; set = agpl3Only; }
-          { spdx = "GPL-3.0-or-later"; set = gpl3Plus; }
-          { spdx = "MIT"; set = mit; }
-          { spdx = "BSD-3-Clause"; set = bsd3; }
-          { spdx = "ISC"; set = isc; }
-          { spdx = "UNLICENSED"; set = unfree; }
+        ({spdx, set}:
+          assertEq
+            "the same license set for ${spdx}"
+            (spdxLicenseSet spdx)
+            set
+        )
+        [
+          { spdx = "AGPL-3.0-only"; set = pkgs.lib.licenses.agpl3Only; }
+          { spdx = "GPL-3.0-or-later"; set = pkgs.lib.licenses.gpl3Plus; }
+          { spdx = "MIT"; set = pkgs.lib.licenses.mit; }
+          { spdx = "BSD-3-Clause"; set = pkgs.lib.licenses.bsd3; }
+          { spdx = "ISC"; set = pkgs.lib.licenses.isc; }
+          { spdx = "UNLICENSED"; set = pkgs.lib.licenses.unfree; }
           # Check that anything else is kept as is
           { spdx = "See LICENSE.txt"; set = "See LICENSE.txt"; }
-    ])))
+        ]
+      )
+    )
   ];
 
   # small helper that checks the output of tests
