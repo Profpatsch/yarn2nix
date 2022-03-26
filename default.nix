@@ -11,13 +11,16 @@ let
 
   yarn2nix = pkgs.stdenv.mkDerivation {
     name = "yarn2nix";
-    src = "${pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.}/yarn2nix";
+    src = "${pkgs.nix-gitignore.gitignoreSource [
+      ".git/"
+    ] ./yarn2nix}";
     outputs = [ "bin" "doc" "out" ];
     phases = [ "unpackPhase" "installPhase" "fixupPhase" ];
     installPhase = ''
       install -D --target-directory=$bin/bin ${static}/bin/*
       ${pkgs.skawarePackages.cleanPackaging.commonFileActions {
          noiseFiles = [
+           ".gitignore"
            "tests/*"
            "src/*"
            "Main.hs"

@@ -1,4 +1,3 @@
-dist-newstyle
+/dist-newstyle
 /result*
-/yarn2nix/tests/nix-tests/result*
-/yarn-lock/Setup*
+/.ninja
