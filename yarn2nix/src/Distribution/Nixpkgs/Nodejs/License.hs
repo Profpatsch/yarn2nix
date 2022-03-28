@@ -1,36 +1,34 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RecordWildCards, FlexibleInstances, GeneralizedNewtypeDeriving #-}
-{-|
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE TypeApplications #-}
+  {-|
 Description: Convert @package.json@ license fields to nixpkgs license attribute sets
 -}
 module Distribution.Nixpkgs.Nodejs.License
   ( -- * Conversion Logic
     nodeLicenseToNixpkgs
-    -- * License Set Representation
-  , NixpkgsLicense (..)
-  , unfreeLicense
     -- * License Lookup Table
   , LicensesBySpdxId
-  , lookupSpdxId
   ) where
 
 import Protolude
 
-import Data.Aeson ((.:), (.:?), (.!=))
 import qualified Data.Aeson as A
-import qualified Data.Aeson.Types as AT
-import qualified Data.HashMap.Lazy as HML
-import Nix.Expr
-import Distribution.Nixpkgs.Nodejs.Utils (attrSetMay, attrSetMayStr)
-import qualified Data.Aeson.KeyMap as KeyMap
-import qualified Data.Aeson.Key as Key
+import qualified Nix.Expr as Nix
+import qualified Data.Map.Strict as Map
+import qualified Data.Aeson.BetterErrors as Json
+import qualified Data.Scientific as Scientific
 
 -- newtype to circumvent the default instance: we don't want
 -- the key of the JSON object to be the key of the HashMap,
 -- but one of its values (spdxId).
 -- | Lookup table from SPDX identifier (as 'Text') to 'NixpkgsLicense'.
 newtype LicensesBySpdxId
-  = LicensesBySpdxId { unLicensesBySpdxId :: HML.HashMap Text NixpkgsLicense }
-  deriving (Show, Eq, Semigroup, Monoid)
+  = LicensesBySpdxId (Map Text NixpkgsLicense)
+  deriving stock (Show, Eq)
+  deriving newtype (Semigroup, Monoid)
 
 -- | Representation of a nixpkgs license set as found in
 --   @lib.licenses@. There doesn't seem to be a strict
@@ -38,60 +36,68 @@ newtype LicensesBySpdxId
 --   the distribution of 'Maybe' and non-'Maybe' values
 --   is based on the current situation in @lib/licenses.nix@.
 data NixpkgsLicense
-  = NixpkgsLicense
-  { attrName  :: Text       -- ^ Attribute name of the license in @lib.licenses@
-  , shortName :: Text
-  , spdxId    :: Maybe Text
-  , fullName  :: Text
-  , url       :: Maybe Text
-  , free      :: Maybe Bool
-  } deriving (Show, Eq)
+  = NixpkgsLicense ([(Text, LicenseValue)])
+  deriving stock (Show, Eq)
+data LicenseValue
+  = LText Text
+  | LBool Bool
+  | LInt Int
+  deriving stock (Show, Eq)
 
 -- | Static version of @lib.licenses.unfree@,
 --   so @UNLICENSED@ can be handled correctly
 --   even if no lookup table is provided.
+--
+-- TODO: this will go out of sync with the nixpkgs definitions every once in a while, how to fix?
 unfreeLicense :: NixpkgsLicense
-unfreeLicense = NixpkgsLicense
-  { attrName = "unfree"
-  , shortName = "unfree"
-  , fullName = "Unfree"
-  , free = Just False
-  , spdxId = Nothing
-  , url = Nothing
-  }
+unfreeLicense = NixpkgsLicense $ [
+    ("shortName", LText "unfree")
+  , ("deprecated", LBool False)
+  , ("fullName", LText "Unfree")
+  , ("redistributable", LBool False)
+  , ("free", LBool False)
+ ]
 
 instance A.FromJSON LicensesBySpdxId where
-  parseJSON = A.withObject "NixpkgsLicenseSet" $
-    KeyMap.foldrWithKey (\k v p -> p >>= addNixpkgsLicense k v) (pure mempty)
-    where
-      addNixpkgsLicense :: AT.Key -> AT.Value -> LicensesBySpdxId -> AT.Parser LicensesBySpdxId
-      addNixpkgsLicense attr val lics = do
-        license <- A.withObject "NixpkgsLicense" parseLicense val
-        let (LicensesBySpdxId licsMap) = lics
-        -- insert if it has an spdxId, otherwise just return lics
-        case spdxId license of
-          Nothing -> pure lics
-          Just i -> pure $ LicensesBySpdxId $ HML.insert i license licsMap
-        where parseLicense v = NixpkgsLicense
-                <$> pure (attr & Key.toText)
-                <*> v .:? "shortName" .!= (attr & Key.toText)
-                <*> v .:? "spdxId"
-                <*> v .:  "fullName"
-                <*> v .:? "url"
-                <*> v .:? "free"
+  parseJSON = Json.toAesonParser identity ((Json.forEachInObject $ \_key -> do
+    Json.keyMay "spdxId" Json.asText
+    >>= \case
+      Nothing -> pure Nothing
+      Just spdxId -> do
+        spdxLicense <- (Json.eachInObject $ Json.withValue $ \case
+          A.String t -> Right $ LText t
+          A.Bool b -> Right $ LBool b
+          A.Number s -> case Scientific.toBoundedInteger @Int s of
+            Just i -> Right $ LInt i
+            Nothing -> Left $ "Not an integer: " <> (s & show)
+          A.Null -> Left "Cannot parse Null as license value for now"
+          A.Object _ -> Left "Cannot parse Object as license value for now"
+          A.Array _ -> Left "Cannot parse Array as license value for now")
+          <&> NixpkgsLicense
+        pure $ Just (spdxId, spdxLicense)
+   )
+      <&> catMaybes
+      <&> Map.fromList
+      <&> LicensesBySpdxId
+   )
+
 
 -- | Build nix attribute set for given 'NixpkgsLicense'.
 --
 --   The resulting nix value of @nixpkgsLicenseExpression x@
 --   should be equal to @lib.licenses.<attrName x>@ for the
 --   same version of nixpkgs used.
-nixpkgsLicenseExpression :: NixpkgsLicense -> NExpr
-nixpkgsLicenseExpression (NixpkgsLicense{..}) = mkNonRecSet $
-  [ "fullName" $= mkStr fullName
-  , "shortName" $= mkStr shortName ]
-  <> attrSetMayStr "spdxId" spdxId
-  <> attrSetMayStr "url" url
-  <> attrSetMay "free" (mkBool <$> free)
+nixpkgsLicenseExpression :: NixpkgsLicense -> Nix.NExpr
+nixpkgsLicenseExpression (NixpkgsLicense m) =
+  m
+  <&> second licenseValueToNExpr
+  & Nix.attrsE
+
+licenseValueToNExpr :: LicenseValue -> Nix.NExpr
+licenseValueToNExpr = \case
+  LText t -> Nix.mkStr t
+  LInt i -> Nix.mkInt (i & fromIntegral @Int @Integer)
+  LBool b -> Nix.mkBool b
 
 -- | Implements the logic for converting from an (optional)
 --   @package.json@ @license@ field to a nixpkgs @meta.license@
@@ -101,12 +107,12 @@ nixpkgsLicenseExpression (NixpkgsLicense{..}) = mkNonRecSet $
 --
 --   See <https://docs.npmjs.com/files/package.json#license> for
 --   details on npm's @license@ field.
-nodeLicenseToNixpkgs :: Text -> LicensesBySpdxId -> NExpr
+nodeLicenseToNixpkgs :: Text -> LicensesBySpdxId -> Nix.NExpr
 nodeLicenseToNixpkgs nodeLicense licSet = do
   if nodeLicense == "UNLICENSED"
     then nixpkgsLicenseExpression unfreeLicense
     else case lookupSpdxId nodeLicense licSet of
-      Nothing -> mkStr nodeLicense
+      Nothing -> Nix.mkStr nodeLicense
       Just license -> license
 
 -- | Lookup function for 'LicensesBySpdxId' which directly returns a 'NExpr'.
@@ -115,6 +121,8 @@ nodeLicenseToNixpkgs nodeLicense licSet = do
 --
 --   Use 'nodeLicenseToNixpkgs' when dealing with the @license@ field
 --   of a npm-ish javascript package.
-lookupSpdxId :: Text -> LicensesBySpdxId -> Maybe NExpr
-lookupSpdxId lic licSet =
-  nixpkgsLicenseExpression <$> HML.lookup lic (unLicensesBySpdxId licSet)
+lookupSpdxId :: Text -> LicensesBySpdxId -> Maybe Nix.NExpr
+lookupSpdxId lic (LicensesBySpdxId licSet) =
+  licSet
+  & Map.lookup lic
+  <&> nixpkgsLicenseExpression
