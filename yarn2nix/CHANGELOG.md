@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 All changes are documented in more detail in their respective commit messages.
 
+## [0.10.1] - 2022-03-28
+
+### Fixed
+
+- Rewrite license parsing from nixpkgs licenses
+
+  It broke in more recent nixpkgs versions, now it should be more resilient
+  against upstream changes.
+
 ## [0.10.0] - 2022-03-26
 
 - Support `aeson-2.0`, requires GHC `9.0`
