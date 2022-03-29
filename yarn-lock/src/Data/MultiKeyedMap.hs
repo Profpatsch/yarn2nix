@@ -20,11 +20,14 @@ A correct implementation guarantees that
 module Data.MultiKeyedMap
 ( MKMap
 , at, (!)
+, lookup, (!?)
+, member, notMember
 , mkMKMap, fromList, toList
 , insert
 , flattenKeys, keys, values
 ) where
 
+import Prelude hiding (lookup)
 import qualified Data.Map.Strict as M
 import Data.Monoid (All(..))
 import Data.Foldable (foldl')
@@ -95,6 +98,26 @@ at MKMap{keyMap, valMap} k =  valMap M.! (keyMap M.! k)
 {-# INLINABLE (!) #-}
 {-# INLINABLE at #-}
 infixl 9 !
+
+-- | Find value at key. Returns Nothing if the key doesn't exist.  See 'M.!?'.
+lookup :: Ord k => k -> MKMap k v -> Maybe v
+lookup k MKMap{keyMap, valMap} = do
+  key <- M.lookup k keyMap
+  M.lookup key valMap
+-- | Operator alias of 'lookup'.  See 'M.!?'
+(!?) :: Ord k => MKMap k v -> k -> Maybe v
+(!?) = flip lookup
+{-# INLINABLE (!?) #-}
+{-# INLINABLE lookup #-}
+infixl 9 !?
+
+-- | Is the key a member of the Map?  See 'notMember'.
+member :: Ord k => k -> MKMap k v -> Bool
+member k MKMap{keyMap} = M.member k keyMap
+
+-- | Is the key not a member of the map?  See 'member'.
+notMember :: Ord k => k -> MKMap k v -> Bool
+notMember k MKMap{keyMap} = M.notMember k keyMap
 
 -- | Create a 'MKMap' given a type for the internally used intermediate key.
 mkMKMap :: forall k ik v. (Ord k, Ord ik, Enum ik, Bounded ik)
