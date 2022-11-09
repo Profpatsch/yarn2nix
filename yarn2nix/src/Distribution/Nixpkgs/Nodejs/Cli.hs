@@ -5,6 +5,7 @@ Description: command line interface
 -}
 module Distribution.Nixpkgs.Nodejs.Cli
 ( cli
+, parseArgsPure
 )
 where
 
@@ -49,7 +50,7 @@ description = O.fullDesc
 
 -- | Main entry point for @yarn2nix@.
 cli :: IO ()
-cli = parseOpts >>= runAction
+cli = parseArgs >>= runAction
 
 -- | Type of action @yarn2nix@ is performing.
 data RunMode
@@ -82,8 +83,16 @@ fileFor cfg =
     YarnLock -> "yarn.lock"
     NodeTemplate -> "package.json"
 
-parseOpts :: IO RunConfig
-parseOpts = O.customExecParser optparsePrefs runConfigParserWithHelp
+parseArgs :: IO RunConfig
+parseArgs = O.customExecParser optparsePrefs runConfigParserWithHelp
+
+parseArgsPure :: [Text] -> IO RunConfig
+parseArgsPure args =
+  args
+  <&> T.unpack
+  & O.execParserPure optparsePrefs runConfigParserWithHelp
+  & O.handleParseResult
+
 
 runAction :: RunConfig -> IO ()
 runAction cfg = do
@@ -106,11 +115,11 @@ runAction cfg = do
       fc <- catchCouldNotOpen path $ readFile path
       case YL.parse path fc of
         Right yarnfile  -> toStdout cfg yarnfile
-        Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)
+        Left err -> die' ("Could not parse " <> toS path <> ":\n" <> YL.prettyLockfileError err)
 
     parseNode :: FilePath -> IO ()
     parseNode path = do
-      NP.decode <$> BL.readFile path >>= \case
+      BL.readFile path >>= (\case
         Right (NP.LoggingPackage (nodeModule, warnings)) -> do
           for_ warnings $ TIO.hPutStrLn stderr . NP.formatWarning
 
@@ -122,7 +131,7 @@ runAction cfg = do
                 <&> Json.decode @LicensesBySpdxId
 
           print $ NixP.prettyNix $ NodeFP.genTemplate licenseSet nodeModule
-        Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)
+        Left err -> die' ("Could not parse " <> toS path <> ":\n" <> show err)) . NP.decode
     catchCouldNotOpen :: FilePath -> IO a -> IO a
     catchCouldNotOpen path action = action `catch` \e ->
       dieWithUsage $ "Could not open " <> toS path <> ":\n" <> show (e :: IOException)
