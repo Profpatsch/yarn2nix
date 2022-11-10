@@ -4,6 +4,12 @@ For an overview of the history of these tools and current options, see [this nix
 
 I currently don’t have much time to maintain this project, it should work for some cases, but has not been “battle-tested” very much.
 
+Alternative, more active projects:
+
+* https://github.com/canva-public/js2nix (handles dependency cycles correctly, does not require flakes)
+* https://github.com/nix-community/dream2nix (requires flakes)
+
+
 # yarn2nix
 
 ```
