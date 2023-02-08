@@ -23,6 +23,12 @@ import Control.Applicative (Alternative (empty))
 -- prop_LockfileSameAmountOfKeys pl = length (packageListToLockfile pl)
 --                                    == length (concatMap fst pl)
 
+sampleKey :: NE.NonEmpty T.PackageKey
+sampleKey = NE.fromList [ T.PackageKey (T.SimplePackageKey "mock-key") "mock-spec"]
+
+sampleKeyWithDir :: NE.NonEmpty T.PackageKey
+sampleKeyWithDir = NE.fromList [ T.PackageKey (T.SimplePackageKey "mock-key") "file:./mock-dir"]
+
 emptyAst :: [(Text, Either Text Parse.PackageFields)] -> Parse.PackageFields
 emptyAst = Parse.PackageFields . M.fromList
 
@@ -86,22 +92,34 @@ case_fileLocal = do
         assertEqual "file path" "../extensions/jupyterlab-toc-0.6.0.tgz" fileLocalNoIntegrityPath
       a -> assertFailure ("should be FileLocal, is " <> show a)
 
+case_localdir :: Assertion
+case_localdir = do
+  let good = minimalAst $ []
+  astToPackageSuccessWithKey sampleKeyWithDir good
+    <&> T.remote >>= \case
+      T.DirectoryLocal {..} -> do
+        assertEqual "local directory path" "./mock-dir" dirLocalPath
+      a -> assertFailure ("should be FileLocal, is " <> show a)
+
 case_missingField :: Assertion
 case_missingField = do
   astToPackageFailureWith
     (File.MissingField "version"
-     NE.:| [File.UnknownRemoteType]) $ emptyAst []
+     NE.:| [File.UnknownRemoteType]) (emptyAst [])
 
-astToPackageSuccess :: Parse.PackageFields -> IO T.Package
-astToPackageSuccess ast = case File.astToPackage ast of
+astToPackageSuccessWithKey :: NE.NonEmpty T.PackageKey -> Parse.PackageFields -> IO T.Package
+astToPackageSuccessWithKey key ast = case File.astToPackage key ast of
   (Left errs) -> do
-     _ <- assertFailure ("should have succeded, but:\n" <> show errs)
+     _ <- assertFailure ("should have succeeded, but:\n" <> show errs)
      error "not reached"
   (Right pkg) -> pure pkg
 
+astToPackageSuccess :: Parse.PackageFields -> IO T.Package
+astToPackageSuccess = astToPackageSuccessWithKey sampleKey
+
 astToPackageFailureWith :: (NE.NonEmpty File.ConversionError)
                         -> Parse.PackageFields -> IO ()
-astToPackageFailureWith errs ast = case File.astToPackage ast of
+astToPackageFailureWith errs ast = case File.astToPackage sampleKey ast of
   (Right _) -> assertFailure "should have failed"
   (Left actual) -> assertEqual "errors should be the same" errs actual
 

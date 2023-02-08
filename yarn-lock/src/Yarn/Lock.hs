@@ -96,7 +96,7 @@ validatePackage :: Parse.Package
                 -> V.Validation (NE.NonEmpty PackageErrorInfo) (T.Keyed T.Package)
 validatePackage (T.Keyed keys (pos, fields)) = V.eitherToValidation
   $ bimap (pure . PackageErrorInfo pos) (T.Keyed keys)
-    $ File.astToPackage fields
+    $ File.astToPackage keys fields
 
 toLockfile :: [T.Keyed T.Package] -> Either LockfileError T.Lockfile
 toLockfile = pure . File.fromPackages

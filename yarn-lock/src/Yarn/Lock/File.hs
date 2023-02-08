@@ -29,7 +29,8 @@ import qualified Data.Either.Validation as V
 import qualified Yarn.Lock.Parse as Parse
 import qualified Yarn.Lock.Types as T
 import qualified Data.MultiKeyedMap as MKM
-import Data.Text (Text)
+import Data.Text (Text, stripPrefix)
+import Data.List (find)
 import Data.Bifunctor (first)
 import Control.Monad ((>=>))
 import Control.Applicative ((<|>))
@@ -64,11 +65,17 @@ data FieldParser a = FieldParser
 
 type Val = V.Validation (NE.NonEmpty ConversionError)
 
+-- | True if package key has file: directive in it's spec. Otherwise False. 
+-- For example, "@good-morning/8-am-music@file:./dir": ... 
+-- 
+hasFileLocatorInSpec :: T.PackageKey -> Bool
+hasFileLocatorInSpec pkgKey = "file:" `Text.isPrefixOf` (T.npmVersionSpec pkgKey)
+
 -- | Parse an AST 'PackageFields' to a 'T.Package', which has
 -- the needed fields resolved.
-astToPackage :: Parse.PackageFields
+astToPackage :: NE.NonEmpty T.PackageKey -> Parse.PackageFields
              -> Either (NE.NonEmpty ConversionError) T.Package
-astToPackage = V.validationToEither . validate
+astToPackage pkgKeys = V.validationToEither . validate
   where
     validate :: Parse.PackageFields -> Val T.Package
     validate fs = do
@@ -119,7 +126,7 @@ astToPackage = V.validationToEither . validate
                     npmVersionSpec <- parseField text v
                     pure $ T.PackageKey { name, npmVersionSpec }) }
 
-    -- | Appling heuristics to the field contents to find the
+    -- | Applying heuristics to the field contents to find the
     -- correct remote type.
     checkRemote :: Parse.PackageFields -> Val T.Remote
     checkRemote fs =
@@ -128,7 +135,7 @@ astToPackage = V.validationToEither . validate
         -- implementing the heuristics of searching for types;
         -- it should of course not lead to false positives
         -- see tests/TestLock.hs
-        $ checkGit <|> checkFileLocal <|> checkFile
+        $ checkGit <|> checkFileLocal <|> checkFile <|> checkDir
       where
         mToV :: e -> Maybe a -> V.Validation e a
         mToV err mb = case mb of
@@ -181,6 +188,15 @@ astToPackage = V.validationToEither . validate
           case mayHash of
             Just hash -> pure (T.FileRemote fileUrl hash)
             Nothing   -> pure (T.FileRemoteNoIntegrity fileUrl)
+
+        -- | Valid package without resolved field, for local directory
+        checkDir :: Maybe T.Remote
+        checkDir = do
+          let keyWithDirLocator = find hasFileLocatorInSpec (NE.toList pkgKeys)
+          let dir = stripPrefix "file:" . T.npmVersionSpec =<< keyWithDirLocator
+          case dir of
+            Nothing -> Nothing
+            Just pkgDir -> pure (T.DirectoryLocal pkgDir)
 
         -- | ensure the prefix is removed
         noPrefix :: Text -> Text -> Text

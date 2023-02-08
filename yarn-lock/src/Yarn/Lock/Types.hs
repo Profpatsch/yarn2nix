@@ -84,4 +84,8 @@ data Remote
   }
   | FileLocalNoIntegrity
   { fileLocalNoIntegrityPath :: Text -- ^ (relative) path to file on the local machine
-  } deriving (Eq, Show)
+  }
+  | DirectoryLocal
+  { dirLocalPath :: Text -- ^ (relative) path to directory on the local machine
+  } 
+  deriving (Eq, Show)
