@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, OverloadedStrings #-}
+{-# LANGUAGE TupleSections, OverloadedStrings, CPP #-}
 {-|
 Description: Additional functions that should probably be in @hnix@
 
@@ -11,6 +11,7 @@ module Nix.Expr.Additions
 , StrQ(..), mkStrQ, mkStrQI
 ) where
 
+import Data.Coerce (coerce)
 import Data.Fix (Fix(..))
 import Data.Text (Text)
 import Data.String (IsString(..))
@@ -36,7 +37,11 @@ dynamicKey k = DynamicKey $ Plain $ DoubleQuoted [Plain k]
 
 -- | Inherit the given list of symbols.
 inheritStatic :: [Text] -> Binding e
+#if MIN_VERSION_hnix(0,16,0)
+inheritStatic = inherit . coerce
+#else
 inheritStatic names = inherit (map StaticKey names) nullPos
+#endif
 
 -- | shortcut to create a list of closed params, like @{ foo, bar, baz }:@
 simpleParamSet :: [Text] -> Params NExpr
@@ -44,7 +49,7 @@ simpleParamSet prms = mkParamset (fmap (, Nothing) prms) False
 
 -- | shortcut to create a list of multiple params, like @a: b: c:@
 multiParam :: [Text] -> NExpr -> NExpr
-multiParam ps expr = foldr mkFunction expr $ map Param ps
+multiParam ps expr = foldr mkFunction expr $ map (Param . coerce) ps
 
 -- TODO: switch over to !. when
 -- https://github.com/jwiegley/hnix/commit/8b4c137a3b125f52bb78039a9d201492032b38e8
@@ -52,9 +57,14 @@ multiParam ps expr = foldr mkFunction expr $ map Param ps
 -- | Like '!.', but automatically convert plain strings to static keys.
 (!!.) :: NExpr -> Text -> NExpr
 aset !!. k = Fix
-  $ NSelect aset
-      (pure $ (if isPlainSymbol k then StaticKey else dynamicKey) k) Nothing
+  $ mkNSelect aset
+      (pure $ (if isPlainSymbol k then StaticKey . coerce else dynamicKey) k)
   where
+#if MIN_VERSION_hnix(0,16,0)
+    mkNSelect a b = NSelect Nothing a b
+#else
+    mkNSelect a b = NSelect a b Nothing
+#endif
     -- the nix lexer regex for IDs (symbols) is 
     -- [a-zA-Z\_][a-zA-Z0-9\_\'\-]*
     isPlainSymbol :: Text -> Bool

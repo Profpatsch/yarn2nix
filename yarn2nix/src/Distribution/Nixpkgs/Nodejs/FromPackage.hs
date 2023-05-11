@@ -8,6 +8,8 @@ module Distribution.Nixpkgs.Nodejs.FromPackage
 
 import Protolude
 
+import Data.Coerce (coerce)
+
 import Nix.Expr
 import Nix.Expr.Additions
 
@@ -35,7 +37,7 @@ genTemplate :: Maybe NL.LicensesBySpdxId -> NP.Package -> NExpr
 genTemplate licSet NP.Package{..} =
   -- reserved for possible future arguments (to prevent breakage)
   simpleParamSet []
-  ==> Param nodeDepsSym
+  ==> Param (coerce nodeDepsSym)
   ==> (mkNonRecSet
         [ "key" $= packageKeyToSet (NP.parsePackageKeyName name)
         , "version" $= mkStr version
